@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleName</key>
+	<string>EdgeDeck</string>
+	<key>CFBundleDisplayName</key>
+	<string>EdgeDeck</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
+	<key>CFBundleIdentifier</key>
+	<string>com.nicparkes.edgedeck</string>
+	<key>CFBundleExecutable</key>
+	<string>EdgeDeck</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>0.1.0</string>
+	<key>CFBundleVersion</key>
+	<string>1</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>12.0</string>
+	<key>LSUIElement</key>
+	<true/>
+	<key>NSHighResolutionCapable</key>
+	<true/>
+	<key>NSAppleEventsUsageDescription</key>
+	<string>EdgeDeck controls Spotify and Music, shows your OmniFocus perspectives, and runs the AppleScript keys you set up.</string>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>EdgeDeck shows your upcoming events on the dashboard.</string>
+	<key>NSCalendarsUsageDescription</key>
+	<string>EdgeDeck shows your upcoming events on the dashboard.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>EdgeDeck connects to Home Assistant and your Elgato Key Lights on your local network.</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_elg._tcp</string>
+	</array>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+</dict>
+</plist>
