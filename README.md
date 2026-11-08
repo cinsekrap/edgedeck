@@ -1,6 +1,6 @@
 # EdgeDeck
 
-A dashboard for the Corsair Xeneon Edge on macOS, standing in for iCUE.
+A touch dashboard for the Corsair Xeneon Edge on macOS.
 
 - **Touch that works on a Mac.** EdgeDeck takes exclusive control of the Edge's touch controller, so touching the screen no longer moves your cursor; touches go straight to the dashboard. A calibration screen lines them up.
 - **A widget dashboard** on the Edge, with pages you swipe between and a layout editor on your main screen.

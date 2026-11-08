@@ -1,6 +1,6 @@
 # EdgeDeck — notes for working on the code
 
-A macOS menu-bar app that replaces Corsair iCUE's widget dashboard for the Corsair Xeneon Edge
+A macOS menu-bar app that runs a touch dashboard on the Corsair Xeneon Edge
 (14.5", 2560x720 touchscreen) on a Mac. Licensed GPL-3.0.
 
 - Swift (AppKit, WebKit, IOKit HID, ServiceManagement), Swift Package, `swift-tools-version:5.7` (Swift 5 language
