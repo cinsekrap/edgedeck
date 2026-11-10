@@ -191,7 +191,7 @@
 
       function render() {
         $('.of-title').textContent = s.title || s.perspective || 'OmniFocus';
-        const tasks = rows ? rows.filter((r) => r.k === 't' && !r.done) : [];
+        const tasks = rows ? rows.filter((r) => r.k === 't' && !r.done && !r.dr) : [];
         $('.of-count').textContent = rows ? String(tasks.length) : '';
         $('.of-status').textContent = error && rows ? '⚠︎' : '';
         if (!s.perspective) { list.innerHTML = `<div class="of-msg">${ctx.edit ? 'Choose a perspective' : 'Not set up'}</div>`; return; }
@@ -208,7 +208,7 @@
         const scroll = list.scrollTop;
         list.innerHTML = `<div class="of-cols${s.columns === '1' ? ' single' : ''}">` + rows.map((r, i) => r.k === 'g'
           ? (r.n ? `<div class="of-group" style="--d:${r.d}">${esc(r.n)}</div>` : '')
-          : `<div class="of-task${pending.has(r.id) || r.done ? ' pending' : ''}" data-i="${i}" style="--d:${r.d}">
+          : `<div class="of-task${pending.has(r.id) || r.done ? ' pending' : r.dr ? ' dropped' : ''}" data-i="${i}" style="--d:${r.d}">
                <button class="of-check pressable" data-i="${i}"><span class="of-circle"></span></button>
                <div class="of-text"><div class="of-name">${r.f ? '<span class="of-flag">⚑</span> ' : ''}${esc(r.n)}</div>
                  <div class="of-meta">${meta(r)}</div></div>
@@ -225,7 +225,7 @@
         list.querySelectorAll('.of-check').forEach((b) => {
           const t = rows[+b.dataset.i];
           b._edgeTap = () => {
-            if (pending.has(t.id) || t.done) return;
+            if (pending.has(t.id) || t.done || t.dr) return;
             // Give 3 seconds to undo before telling OmniFocus.
             pending.set(t.id, setTimeout(async () => {
               try {

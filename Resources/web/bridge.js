@@ -21,6 +21,7 @@
     { k: 'g', n: 'Home', d: 0 },
     { k: 't', id: 'b1', n: 'Book the boiler service', d: 1, pr: 'Home', tags: ['Phone'], pl: +day0 + 42 * 3600e3, due: +day0 + 5 * 86400e3 },
     { k: 't', id: 'b2', n: 'Renew the car insurance', d: 1, pr: 'Home', tags: [], pl: null, due: null },
+    { k: 't', id: 'b4', n: 'Fix the shed door', d: 1, pr: 'Home', tags: [], pl: null, due: null, dr: true },
     { k: 't', id: 'b3', n: 'Sort out the loft', d: 1, pr: 'Home', tags: ['Weekend'], pl: null, due: null },
   ];
   const mockMeeting = {

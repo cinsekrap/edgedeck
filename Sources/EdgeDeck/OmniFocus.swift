@@ -274,7 +274,10 @@ final class OmniFocusService {
               if (o instanceof Task) {
                 let epl = null;
                 try { epl = ms(o.effectivePlannedDate); } catch (e) {}
-                rows.push({ k: 't', id: o.id.primaryKey, n: o.name, d: depth, done: o.completed, f: o.flagged,
+                // Dropped (directly or by its project): OmniFocus shows a line in the circle, not a tick.
+                let dropped = false;
+                try { dropped = !o.completed && (o.dropDate != null || o.taskStatus === Task.Status.Dropped); } catch (e) {}
+                rows.push({ k: 't', id: o.id.primaryKey, n: o.name, d: depth, done: o.completed, dr: dropped, f: o.flagged,
                   due: ms(o.effectiveDueDate), pl: ms(o.plannedDate), epl: epl,
                   pr: o.containingProject ? o.containingProject.name : '', tags: o.tags.map((t) => t.name),
                   kids: child.children.length > 0 });

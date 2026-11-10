@@ -310,6 +310,9 @@ svg { width: 100%; height: 100%; fill: currentColor; display: block; }
 .of-check.pressed .of-circle { transform: scale(.9); }
 .of-task.pending .of-circle { background: var(--accent); border-color: var(--accent); }
 .of-task.pending .of-circle::after { content: "✓"; position: absolute; inset: 0; display: grid; place-items: center; color: #05131c; font-weight: 800; font-size: 22px; }
+.of-task.dropped .of-circle { border-color: #5d6370; }
+.of-task.dropped .of-circle::after { content: ""; position: absolute; left: 8px; right: 8px; top: 50%; height: 3px; margin-top: -1.5px; border-radius: 2px; background: #8b93a1; }
+.of-task.dropped .of-name { text-decoration: line-through; color: var(--muted); }
 .of-task.pending .of-name { text-decoration: line-through; color: var(--muted); }
 .of-text { flex: 1; min-width: 0; }
 .of-name { font-size: calc(22px * var(--text-scale, 1)); font-weight: 550; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
