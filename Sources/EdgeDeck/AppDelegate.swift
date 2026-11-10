@@ -23,6 +23,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         bridge.canvas = { [weak self] in self?.dashboard.canvas ?? .zero }
         bridge.teams = teams
         bridge.omnifocus.edgeFrame = { DashboardController.edgeScreen()?.frame }
+        bridge.omnifocus.watchForLostWindow()
         teams.onUpdate = { [weak self] in
             guard let self = self else { return }
             self.bridge.broadcast("window.EdgeTeams && EdgeTeams.update(\(JSON.string(self.teams.state)))")
