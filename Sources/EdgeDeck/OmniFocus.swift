@@ -98,7 +98,7 @@ final class OmniFocusService {
               return JSON.stringify({ ok: true });
             })()
             """))
-        }
+        } then: { ok in if ok { Log.write("OmniFocus: completed a task") } }
     }
 
     /// Sets the planned date (milliseconds since 1970), or clears it when nil.
@@ -223,7 +223,8 @@ final class OmniFocusService {
 
     // MARK: Plumbing
 
-    private func run(_ done: @escaping (Any?, String?) -> Void, script: @escaping () -> String) {
+    private func run(_ done: @escaping (Any?, String?) -> Void, script: @escaping () -> String,
+                     then: ((Bool) -> Void)? = nil) {
         guard isRunning else { done(nil, "OmniFocus isn't open"); return }
         queue.async {
             let r = Scripts.run(source: script(), language: "applescript", timeout: 30)
@@ -234,6 +235,7 @@ final class OmniFocusService {
                 value = nil
             }
             if let e = error { Log.write("OmniFocus: \(e)") }
+            then?(error == nil)
             DispatchQueue.main.async { done(value, error) }
         }
     }

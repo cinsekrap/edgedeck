@@ -209,7 +209,7 @@
         list.innerHTML = `<div class="of-cols${s.columns === '1' ? ' single' : ''}">` + rows.map((r, i) => r.k === 'g'
           ? (r.n ? `<div class="of-group" style="--d:${r.d}">${esc(r.n)}</div>` : '')
           : `<div class="of-task${pending.has(r.id) || r.done ? ' pending' : ''}" data-i="${i}" style="--d:${r.d}">
-               <button class="of-check pressable" data-i="${i}"></button>
+               <button class="of-check pressable" data-i="${i}"><span class="of-circle"></span></button>
                <div class="of-text"><div class="of-name">${r.f ? '<span class="of-flag">⚑</span> ' : ''}${esc(r.n)}</div>
                  <div class="of-meta">${meta(r)}</div></div>
                ${pending.has(r.id) ? `<button class="of-undo pressable" data-i="${i}">Undo</button>` : ''}
