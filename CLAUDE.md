@@ -15,6 +15,12 @@ A macOS menu-bar app that runs a touch dashboard on the Corsair Xeneon Edge
 - `make-dmg.sh` (SIGN_ID + NOTARY_PROFILE) → `build/EdgeDeck-<version>.dmg`: drag-to-Applications window, signed,
   notarised, stapled. Finder draws icons ~45 pt below their AppleScript position; dot-files are parked off-window.
 - Apple Silicon only: the macOS 27 Command Line Tools have no x86_64 Swift compatibility libraries.
+- Updates (`Updater.swift`): checks GitHub's latest non-pre-release release (a minute after launch, then daily, if
+  `config.updates.autoCheck`); menu bar "Update to EdgeDeck x…" and Settings → Updates. Install = download DMG →
+  SHA-256 must match both the release notes' hash and GitHub's asset digest → mount → ditto next to the app →
+  signature requirement (Developer ID, same team as the running app, same bundle ID) → spctl "Notarized Developer
+  ID" → newer version → replaceItemAt → relaunch. Ad-hoc builds can't self-update. So release notes MUST include the
+  DMG's SHA-256. Tested end to end 10 Nov 2026 (0.0.9 → 0.1.0; TCC grants survived).
 - Art is drawn in code: `tools/make-icon.swift` (AppIcon.icns), `tools/make-dmg-background.swift`.
 - Bundle ID `com.nicparkes.edgedeck`; changing it resets every TCC grant.
 - Preview the web UI without the app: open `Resources/web/index.html` (`?mode=edit` for the editor); bridge.js mocks

@@ -11,6 +11,7 @@
     ['teams', 'Meetings', '👥'],
     ['homeassistant', 'Home Assistant', '🏠'],
     ['permissions', 'Permissions', '🔒'],
+    ['updates', 'Updates', '⬇️'],
   ];
   const h = (...a) => window.EditorForm.h(...a);
   const control = (prop, obj, section) => window.EditorForm.control(prop, obj, () => save(section));
@@ -197,6 +198,46 @@
       }).catch(() => (box.textContent = 'Status unavailable')));
       return [card(null, box)];
     },
+
+    updates(cfg) {
+      cfg.updates = cfg.updates || { autoCheck: true };
+      const box = h('div', { class: 'st-wide' });
+      let busy = '';
+      const when = (ms) => new Date(ms).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+      const draw = (u) => {
+        if (!u) return;
+        const lines = [statusLine(null, 'You have EdgeDeck ' + u.current + '.')];
+        if (u.installing || busy === 'install') lines.push(statusLine(null, 'Downloading and checking ' + (u.latest || 'the update') + '… EdgeDeck restarts when it’s done.'));
+        else if (u.checking || busy === 'check') lines.push(statusLine(null, 'Checking…'));
+        else if (u.error) lines.push(statusLine(false, '✗ ' + u.error));
+        else if (u.available) lines.push(statusLine(true, 'EdgeDeck ' + u.latest + ' is available.'));
+        else if (u.latest) lines.push(statusLine(true, '✓ Up to date' + (u.checked ? ' (checked ' + when(u.checked) + ')' : '')));
+        const buttons = [
+          h('button', { class: 'ed-btn', disabled: u.checking || u.installing || null, onclick: () => {
+            busy = 'check'; draw(u);
+            EdgeBridge.call('updates.check').then((s) => { busy = ''; draw(s); }).catch((e) => { busy = ''; EdgeDeck.toast(e.message, 'error'); });
+          } }, 'Check now'),
+        ];
+        if (u.available && u.canInstall) buttons.unshift(h('button', { class: 'ed-btn primary', disabled: u.installing || null, onclick: () => {
+          busy = 'install'; draw(u);
+          EdgeBridge.call('updates.install').catch((e) => { busy = ''; EdgeDeck.toast('Not installed: ' + e.message, 'error'); EdgeBridge.call('updates.state').then(draw); });
+        } }, 'Install ' + u.latest + ' and restart'));
+        if (u.latest) buttons.push(h('button', { class: 'ed-btn', onclick: () => EdgeBridge.call('updates.page') }, 'Release page'));
+        box.replaceChildren(...[...lines, h('div', { class: 'ed-row' }, ...buttons),
+          u.available && u.notes ? h('pre', { class: 'st-notes' }, u.notes) : null,
+          u.available && !u.canInstall ? note('This copy can’t update itself (it isn’t signed with a Developer ID, or can’t write to its folder). Download the new version from the release page.') : null,
+        ].filter(Boolean));   // replaceChildren would print a null as text
+      };
+      S.updatesChanged = draw;
+      S.cleanups.push(() => (S.updatesChanged = null));
+      EdgeBridge.call('updates.state').then(draw).catch(() => (box.textContent = 'Unavailable'));
+      return [
+        card(null, box),
+        card('Automatic checks',
+          control({ key: 'autoCheck', label: 'Check for updates automatically', type: 'bool', default: true }, cfg.updates, 'updates'),
+          note('Once a day, EdgeDeck asks GitHub for the latest release. Nothing is installed until you choose to. Before installing, it checks that the download matches the published SHA-256, is signed by the same developer and is notarised by Apple.')),
+      ];
+    },
   };
 
   // ---------- Layout ----------
@@ -216,6 +257,8 @@
   window.Settings = {
     start(cfg) {
       S.cfg = cfg;
+      const wanted = new URLSearchParams(location.search).get('section');
+      if (wanted && SECTIONS.some(([k]) => k === wanted)) S.section = wanted;
       EdgeDeck.applyTheme(cfg);
       document.body.classList.add('editing', 'settings');
       const app = document.getElementById('app');
@@ -228,6 +271,9 @@
           h('div', { class: 'st-body' })));
       render();
     },
+
+    // The Mac's updater changed state (checking, found one, installing…).
+    updatesChanged(state) { if (S.updatesChanged) S.updatesChanged(state); },
 
     // Another window (or the dashboard) saved: pick up changes made elsewhere,
     // but never redraw over a change of ours that hasn't been saved yet.

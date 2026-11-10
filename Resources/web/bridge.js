@@ -88,6 +88,11 @@
           setTimeout(() => window.EdgeDeck && EdgeDeck.reloadConfig(), 0);
           return true;
         }
+        case 'updates.state': case 'updates.check':
+          return { current: '0.1.0', latest: '0.2.0', available: true, canInstall: true, checking: false, installing: false, autoCheck: true,
+            checked: Date.now(), notes: 'A touch dashboard for the Corsair Xeneon Edge on macOS.\n\n- Sample release notes (preview)', page: 'https://github.com/cinsekrap/edgedeck/releases' };
+        case 'updates.install': return Promise.reject(new Error('Preview only'));
+        case 'updates.page': return true;
         case 'settings.open': window.open('index.html?mode=settings', '_blank'); return true;
         case 'editor.open': window.open('index.html?mode=edit', '_blank'); return true;
         case 'login.get': return { supported: true, enabled: false };

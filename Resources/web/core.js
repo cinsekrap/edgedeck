@@ -15,6 +15,7 @@
       homeAssistant: { url: 'http://homeassistant.local:8123', token: '' },
       device: { flipX: false, flipY: false, swapXY: false, screenName: '', showTouches: false, fixStretch: true },
       teams: { enabled: true, autoPage: true, stayAwake: true, lightsOn: false },
+      updates: { autoCheck: true },
       screensaver: { dimAfter: 10, dimLevel: 20, blankAfter: 30, blankClock: true, pixelShift: true, schedule: false, scheduleFrom: '23:00', scheduleTo: '07:00' },
       pages: buildTemplate('minimal', ['media']).pages,
     };

@@ -19,6 +19,7 @@ final class Bridge: NSObject, WKScriptMessageHandler {
     var teams: MeetingHub?
     let omnifocus = OmniFocusService()
     let elgato = ElgatoLights()
+    let updater = Updater()
 
     private let views = NSHashTable<WKWebView>.weakObjects()
 
@@ -144,6 +145,21 @@ final class Bridge: NSObject, WKScriptMessageHandler {
                 }
                 reply(text)
             }
+
+        case "updates.state":
+            reply(updater.state)
+
+        case "updates.check":
+            updater.check { [weak self] in reply(self?.updater.state) }
+
+        case "updates.install":
+            updater.install { error in reply(error == nil, error: error) }
+
+        case "updates.page":
+            if let url = updater.latest?.pageURL ?? URL(string: "https://github.com/\(Updater.repo)/releases") {
+                NSWorkspace.shared.open(url)
+            }
+            reply(true)
 
         case "app.front":
             reply(frontApp())

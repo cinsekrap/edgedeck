@@ -24,6 +24,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         bridge.teams = teams
         bridge.omnifocus.edgeFrame = { DashboardController.edgeScreen()?.frame }
         bridge.omnifocus.watchForLostWindow()
+        bridge.updater.onChange = { [weak self] in
+            guard let self = self else { return }
+            self.bridge.broadcast("window.Settings && Settings.updatesChanged && Settings.updatesChanged(\(JSON.string(self.bridge.updater.state)))")
+        }
+        bridge.updater.start()
         teams.onUpdate = { [weak self] in
             guard let self = self else { return }
             self.bridge.broadcast("window.EdgeTeams && EdgeTeams.update(\(JSON.string(self.teams.state)))")
@@ -130,6 +135,33 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         NSApp.mainMenu = main
     }
 
+    @objc private func showUpdate() {
+        let updater = bridge.updater
+        guard let release = updater.latest, updater.updateAvailable, !updater.installing else { return }
+        NSApp.activate(ignoringOtherApps: true)
+        let alert = NSAlert()
+        alert.messageText = "EdgeDeck \(release.version) is available"
+        let notes = release.notes.components(separatedBy: "\n").prefix(14).joined(separator: "\n")
+        alert.informativeText = "You have \(Updater.currentVersion).\n\n" + notes +
+            (updater.canInstall ? "\n\nEdgeDeck downloads it, checks it's signed by the same developer and notarised by Apple, then restarts." : "")
+        if updater.canInstall { alert.addButton(withTitle: "Install and Restart") }
+        alert.addButton(withTitle: "Release Page")
+        alert.addButton(withTitle: "Later")
+        let response = alert.runModal()
+        let first = NSApplication.ModalResponse.alertFirstButtonReturn
+        if updater.canInstall && response == first {
+            updater.install { error in
+                guard let error = error else { return }
+                let failed = NSAlert()
+                failed.messageText = "The update wasn't installed"
+                failed.informativeText = error + "\n\nNothing was changed."
+                failed.runModal()
+            }
+        } else if response == (updater.canInstall ? NSApplication.ModalResponse.alertSecondButtonReturn : first) {
+            NSWorkspace.shared.open(release.pageURL)
+        }
+    }
+
     func menuNeedsUpdate(_ menu: NSMenu) {
         menu.removeAllItems()
 
@@ -141,6 +173,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         screenLine.isEnabled = false
         menu.addItem(screenLine)
         menu.addItem(.separator())
+
+        if bridge.updater.updateAvailable, let v = bridge.updater.latest?.version {
+            add(bridge.updater.installing ? "Installing EdgeDeck \(v)…" : "Update to EdgeDeck \(v)…", #selector(showUpdate))
+            menu.addItem(.separator())
+        }
 
         let show = NSMenuItem(title: "Show Dashboard on Edge", action: #selector(toggleDashboard), keyEquivalent: "")
         show.state = dashboard.enabled ? .on : .off

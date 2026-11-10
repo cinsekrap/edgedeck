@@ -148,3 +148,5 @@ body.settings { overflow: hidden; }
 .su-layout.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, #191c22); }
 .su-layout-name { font-size: 16px; font-weight: 700; color: #e8ebf0; }
 .su-tips { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+.st-notes { margin: 4px 0 0; padding: 10px 12px; max-height: 220px; overflow: auto; white-space: pre-wrap; font: 12.5px/1.5 -apple-system, sans-serif; color: #c9ced6; background: rgba(255,255,255,0.04); border-radius: 8px; }
+.st-wide { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 10px; }
