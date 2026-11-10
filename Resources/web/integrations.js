@@ -247,7 +247,9 @@
   };
   const wmo = (code, night) => {
     const w = WMO[code] || ['–', '🌡️'];
-    return { text: w[0], icon: night && w[2] ? w[2] : w[1] };
+    // At night, no suns: codes without their own night icon swap a sunny one for its sunless version.
+    const NIGHT = { '☀️': '🌙', '🌤️': '🌙', '⛅': '☁️', '🌦️': '🌧️' };
+    return { text: w[0], icon: night ? (w[2] || NIGHT[w[1]] || w[1]) : w[1] };
   };
 
   async function geocode(place) {
@@ -264,12 +266,18 @@
     return out;
   }
 
+  const COMPASS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+  const WIND = { kmh: ['kmh', 'km/h'], mph: ['mph', 'mph'], ms: ['ms', 'm/s'] };
+
+  // Adapts to its tile: the original compact layout on small tiles, an hourly strip
+  // on wide ones, and current details + hourly + daily on tiles 3 or more rows tall.
   const weather = {
     name: 'Weather',
     size: [4, 2],
     props: [
       { key: 'location', label: 'Location', type: 'text', placeholder: 'London', hint: 'A town or city, or "latitude, longitude".' },
       { key: 'units', label: 'Units', type: 'select', default: 'c', options: [['c', '°C'], ['f', '°F']] },
+      { key: 'wind', label: 'Wind speed', type: 'select', default: 'kmh', options: [['kmh', 'km/h'], ['mph', 'mph'], ['ms', 'm/s']] },
       { key: 'forecastDays', label: 'Forecast days', type: 'number', default: 3, min: 0, max: 6 },
       { key: 'color', label: 'Background', type: 'color' },
     ],
@@ -277,6 +285,44 @@
       let data = null;
       let place = null;
       let error = '';
+      const deg = (t) => `${Math.round(t)}°`;
+      const hhmm = (iso) => iso.slice(11, 16);
+      const dayName = (d) => new Date(d + 'T12:00').toLocaleDateString('en-GB', { weekday: 'short' });
+      const rain = (p) => (p >= 20 ? `<div class="wx-rain">💧${Math.round(p)}%</div>` : '<div class="wx-rain"></div>');
+
+      function days(n, withRain) {
+        const dl = data.daily;
+        let out = '';
+        for (let i = 1; i <= n && i < dl.time.length; i++) {
+          const w = wmo(dl.weather_code[i]);
+          out += `<div class="wx-day"><div class="wx-dname">${dayName(dl.time[i])}</div><div class="wx-dicon">${w.icon}</div>` +
+            `<div class="wx-drange">${deg(dl.temperature_2m_max[i])} <span>${deg(dl.temperature_2m_min[i])}</span></div>` +
+            (withRain ? rain((dl.precipitation_probability_max || [])[i] || 0) : '') + '</div>';
+        }
+        return out;
+      }
+
+      function hours(n) {
+        const h = data.hourly;
+        if (!h || n < 2) return '';
+        let out = '';
+        for (let i = 0; i < n && i < h.time.length; i++) {
+          const w = wmo(h.weather_code[i], h.is_day[i] === 0);
+          out += `<div class="wx-hour"><div class="wx-htime">${i === 0 ? 'Now' : hhmm(h.time[i])}</div><div class="wx-hicon">${w.icon}</div>` +
+            `<div class="wx-htemp">${deg(h.temperature_2m[i])}</div>${rain(h.precipitation_probability[i] || 0)}</div>`;
+        }
+        return `<div class="wx-hours">${out}</div>`;
+      }
+
+      // Sunrise or sunset, whichever comes next.
+      function sun() {
+        const dl = data.daily, now = data.current.time;
+        for (let i = 0; i < dl.time.length; i++) {
+          if (dl.sunrise[i] > now) return `🌅 ${hhmm(dl.sunrise[i])}`;
+          if (dl.sunset[i] > now) return `🌇 ${hhmm(dl.sunset[i])}`;
+        }
+        return '';
+      }
 
       function render() {
         if (!s.location) { el.innerHTML = '<div class="wx-msg">Set a location in the editor</div>'; return; }
@@ -284,23 +330,54 @@
         if (!data) { el.innerHTML = '<div class="wx-msg">Loading…</div>'; return; }
         const c = data.current, dl = data.daily;
         const now = wmo(c.weather_code, c.is_day === 0);
-        const days = Math.max(0, Math.min(6, Number(s.forecastDays ?? 3)));
-        let fc = '';
-        for (let i = 1; i <= days && i < dl.time.length; i++) {
-          const w = wmo(dl.weather_code[i]);
-          const name = new Date(dl.time[i] + 'T12:00').toLocaleDateString('en-GB', { weekday: 'short' });
-          fc += `<div class="wx-day"><div class="wx-dname">${name}</div><div class="wx-dicon">${w.icon}</div><div class="wx-drange">${Math.round(dl.temperature_2m_max[i])}° <span>${Math.round(dl.temperature_2m_min[i])}°</span></div></div>`;
+        const nDays = Math.max(0, Math.min(6, Number(s.forecastDays ?? 3)));
+        const W = el.clientWidth, H = el.clientHeight;
+        const where = place && place.name ? ' · ' + esc(place.name) : '';
+        const hl = `H ${deg(dl.temperature_2m_max[0])} · L ${deg(dl.temperature_2m_min[0])}`;
+
+        if (H >= 440) {
+          // Large: current conditions with details, then hourly, then daily.
+          const wind = WIND[s.wind] || WIND.kmh;
+          const details = [
+            `Feels ${deg(c.apparent_temperature)}`,
+            `Humidity ${Math.round(c.relative_humidity_2m)}%`,
+            `💨 ${Math.round(c.wind_speed_10m)} ${wind[1]} ${COMPASS[Math.round(c.wind_direction_10m / 45) % 8]}`,
+            `💧 ${Math.round((data.hourly.precipitation_probability || [])[0] || 0)}%`,
+            sun(),
+          ].filter(Boolean).map((t) => `<div class="wx-detail">${t}</div>`).join('');
+          el.classList.remove('wx-wide'); el.classList.add('wx-large');
+          el.innerHTML = `
+            <div class="wx-top">
+              <div class="wx-now">
+                <div class="wx-icon">${now.icon}</div>
+                <div class="wx-main">
+                  <div class="wx-temp">${deg(c.temperature_2m)}</div>
+                  <div class="wx-desc">${esc(now.text)}</div>
+                  <div class="wx-sub">${hl}${where}</div>
+                </div>
+              </div>
+              <div class="wx-details">${details}</div>
+            </div>
+            ${hours(Math.min(24, Math.floor((W - 40) / 92)))}
+            ${nDays ? `<div class="wx-forecast">${days(nDays, true)}</div>` : ''}`;
+          return;
         }
+
+        // Compact (and wide: an hourly strip between "now" and the days).
+        const spare = W - 400 - (nDays && W / H > 1.8 ? nDays * 80 : 0);
+        const nHours = spare >= 300 ? Math.min(12, Math.floor(spare / 84)) : 0;
+        el.classList.remove('wx-large'); el.classList.toggle('wx-wide', !!nHours);
         el.innerHTML = `
           <div class="wx-now">
             <div class="wx-icon">${now.icon}</div>
             <div class="wx-main">
-              <div class="wx-temp">${Math.round(c.temperature_2m)}°</div>
+              <div class="wx-temp">${deg(c.temperature_2m)}</div>
               <div class="wx-desc">${esc(now.text)}</div>
-              <div class="wx-sub">H ${Math.round(dl.temperature_2m_max[0])}° · L ${Math.round(dl.temperature_2m_min[0])}°${place && place.name ? ' · ' + esc(place.name) : ''}</div>
+              <div class="wx-sub">${hl}${where}</div>
             </div>
           </div>
-          ${fc ? `<div class="wx-forecast">${fc}</div>` : ''}`;
+          ${nHours ? hours(nHours) : ''}
+          ${nDays ? `<div class="wx-forecast">${days(nDays, false)}</div>` : ''}`;
       }
 
       let timer = null;
@@ -310,9 +387,13 @@
         try {
           place = place || await geocode(s.location);
           const unit = s.units === 'f' ? '&temperature_unit=fahrenheit' : '';
-          const days = Math.max(1, Math.min(7, Number(s.forecastDays ?? 3) + 1));
+          const wind = '&wind_speed_unit=' + (WIND[s.wind] || WIND.kmh)[0];
+          const n = Math.max(1, Math.min(7, Number(s.forecastDays ?? 3) + 1));
           const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${place.lat}&longitude=${place.lon}` +
-            `&current=temperature_2m,weather_code,is_day&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=${days}${unit}`);
+            '&current=temperature_2m,apparent_temperature,relative_humidity_2m,wind_speed_10m,wind_direction_10m,weather_code,is_day' +
+            '&hourly=temperature_2m,weather_code,precipitation_probability,is_day&forecast_hours=24' +
+            '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunrise,sunset' +
+            `&timezone=auto&forecast_days=${n}${unit}${wind}`);
           if (!r.ok) throw new Error('Weather service error ' + r.status);
           data = await r.json();
           error = '';
@@ -324,9 +405,16 @@
         render();
       }
 
+      // The layout depends on the tile's size, which changes while resizing in the editor.
+      let lastSize = '';
+      const ro = new ResizeObserver(() => {
+        const size = el.clientWidth + 'x' + el.clientHeight;
+        if (size !== lastSize) { lastSize = size; render(); }
+      });
+      ro.observe(el);
       render();
       load();
-      return { destroy: () => clearTimeout(timer) };
+      return { destroy() { clearTimeout(timer); ro.disconnect(); } };
     },
   };
 

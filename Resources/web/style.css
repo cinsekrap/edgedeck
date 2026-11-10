@@ -205,7 +205,37 @@ svg { width: 100%; height: 100%; fill: currentColor; display: block; }
 .wx-dicon { font-size: clamp(22px, 20cqh, 40px); line-height: 1.1; }
 .wx-drange { font-size: calc(15px * var(--text-scale, 1)); font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .wx-drange span { color: var(--muted); font-weight: 500; }
-@container (max-aspect-ratio: 1.8) { .w-weather .wx-forecast { display: none; } }
+@container (max-aspect-ratio: 1.8) { .w-weather:not(.wx-large) .wx-forecast { display: none; } }
+.wx-rain { font-size: calc(15px * var(--text-scale, 1)); color: #6cc4ff; font-weight: 600; min-height: 1.2em; white-space: nowrap; }
+.wx-hours { display: flex; justify-content: space-between; gap: 6px; min-width: 0; }
+.wx-hour { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 70px; flex: 1; }
+.wx-htime { font-size: calc(17px * var(--text-scale, 1)); color: var(--muted); font-weight: 600; font-variant-numeric: tabular-nums; }
+.wx-hicon { font-size: 36px; line-height: 1.1; }
+.wx-htemp { font-size: calc(20px * var(--text-scale, 1)); font-weight: 600; font-variant-numeric: tabular-nums; }
+.w-weather.wx-wide .wx-now { flex: none; }
+.w-weather.wx-wide .wx-hours { flex: 1; }
+/* Large tiles: a column of current conditions, hourly, daily. */
+.w-weather.wx-large { flex-direction: column; align-items: stretch; justify-content: space-between; gap: 16px; padding: 22px 26px; }
+.wx-large .wx-top { display: flex; align-items: center; gap: 24px; min-width: 0; }
+.wx-large .wx-icon { font-size: 104px; }
+.wx-large .wx-temp { font-size: calc(84px * var(--text-scale, 1)); }
+.wx-large .wx-desc { font-size: calc(24px * var(--text-scale, 1)); }
+.wx-large .wx-sub { font-size: calc(18px * var(--text-scale, 1)); }
+.wx-details { display: grid; grid-template-columns: repeat(2, auto); gap: 8px 32px; margin-left: auto; justify-items: start; align-content: center; }
+.wx-detail { font-size: calc(19px * var(--text-scale, 1)); color: var(--muted); font-weight: 600; white-space: nowrap; }
+.wx-large .wx-hours { border-top: 1px solid rgba(255,255,255,.08); border-bottom: 1px solid rgba(255,255,255,.08); padding: 14px 0; }
+.wx-large .wx-forecast { display: flex; justify-content: space-between; gap: 10px; }
+.wx-large .wx-day { flex: 1; gap: 6px; }
+.wx-large .wx-dname { font-size: calc(17px * var(--text-scale, 1)); }
+.wx-large .wx-dicon { font-size: 40px; }
+.wx-large .wx-drange { font-size: calc(20px * var(--text-scale, 1)); }
+/* Narrow large tiles: the details wrap underneath. */
+@container (max-width: 860px) {
+  .wx-large .wx-top { flex-wrap: wrap; row-gap: 10px; }
+  .wx-large .wx-details { flex-basis: 100%; margin-left: 0; grid-template-columns: repeat(3, auto); justify-content: space-between; }
+  .wx-large .wx-icon { font-size: 84px; }
+  .wx-large .wx-temp { font-size: calc(70px * var(--text-scale, 1)); }
+}
 
 /* ---------- Script ---------- */
 .w-script { display: flex; align-items: center; gap: 14px; padding: 0 18px; }

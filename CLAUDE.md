@@ -105,7 +105,8 @@ A macOS menu-bar app that runs a touch dashboard on the Corsair Xeneon Edge
 - `Scripts.swift`: runs AppleScript/JXA via osascript (script on stdin, 20 s timeout); JSON output is parsed.
 - Web: `core.js` (config, grid rendering, gestures, pages/swipe), `widgets.js` (registry: key, media,
   ha-entity, ha-camera, clock, label — each has name, size, props, create), `integrations.js` (system, audio, calendar, weather,
-  script, timer; weather calls Open-Meteo directly from JS), `omnifocus.js` (perspective widget, 3 s undo on complete,
+  script, timer; weather calls Open-Meteo directly from JS and picks its layout from the tile's size: compact,
+  wide with an hourly strip, or 3+ rows tall with details + hourly + daily), `omnifocus.js` (perspective widget, 3 s undo on complete,
   planned-date sheet with working-day presets), `teams.js` (EdgeTeams state + Teams widget; a meeting
   starting wakes the Edge and shows the `teams.page` page, returning afterwards), `ha.js` (Home Assistant WebSocket
   client; URL "mock" gives sample entities), `editor.js` (layout editor built from widget `props`;
