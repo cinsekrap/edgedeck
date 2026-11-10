@@ -122,22 +122,30 @@ final class OmniFocusService {
     private var watchTimer: Timer?
     private var checking = false
     private var lastCheckError: String?
+    /// When we first saw OmniFocus in front with only EdgeDeck's hidden window.
+    private var lostSince: Date?
+    /// How long to wait after you close your window while OmniFocus stays in front.
+    private let closeGrace: TimeInterval = 10
 
     /// EdgeDeck's parked window is hidden on the Edge. If you close the OmniFocus
-    /// window you were using, that hidden one would be all OmniFocus has left, and
-    /// clicking its Dock icon would just bring it forward, out of sight. So while
-    /// OmniFocus is the front app, make sure it has a window you can see: checked
-    /// the moment it comes to the front, then every 2 seconds while it stays there.
+    /// window you were using, that hidden one is all OmniFocus has left, and its Dock
+    /// icon would only bring that forward, out of sight. So:
+    /// - switching to OmniFocus from another app (Dock, ⌘-Tab) opens a window on the
+    ///   main screen straight away if it has no visible one: you clearly want one;
+    /// - closing your window while OmniFocus stays in front (the hidden window keeps
+    ///   it there) waits 10 s first, so it doesn't pop straight back up. Switching
+    ///   to another app in that time cancels it.
     func watchForLostWindow() {
         NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didActivateApplicationNotification,
                                                           object: nil, queue: .main) { [weak self] note in
             guard let self = self else { return }
             let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
+            self.lostSince = nil
             if app?.bundleIdentifier == Self.bundleID {
-                self.ensureVisibleWindow()
+                self.ensureVisibleWindow(openNow: true)
                 if self.watchTimer == nil {
                     self.watchTimer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in
-                        self?.ensureVisibleWindow()
+                        self?.ensureVisibleWindow(openNow: false)
                     }
                 }
             } else {
@@ -147,9 +155,10 @@ final class OmniFocusService {
         }
     }
 
-    private func ensureVisibleWindow() {
+    private func ensureVisibleWindow(openNow: Bool) {
         guard !checking, isRunning, NSWorkspace.shared.frontmostApplication?.bundleIdentifier == Self.bundleID,
               let edge = edgeFrame(), let main = NSScreen.screens.first else { return }
+        let mayOpen = openNow || (lostSince.map { Date().timeIntervalSince($0) >= closeGrace } ?? false)
         checking = true
         let mainHeight = main.frame.height
         // AppleScript bounds use a top-left origin on the main screen.
@@ -159,22 +168,26 @@ final class OmniFocusService {
         let w = min(1200, v.width - 80), h = min(800, v.height - 80)
         let x = Int(v.midX - w / 2), y = Int(mainHeight - v.midY - h / 2)
         let bounds = "{\(x), \(y), \(x + Int(w)), \(y + Int(h))}"
+        // Replies "visible" (you have a window), "none" (no windows at all),
+        // "hidden" (only EdgeDeck's, on the Edge) or "opened".
         let script = """
         tell application id "\(Self.bundleID)"
             local d, total, onEdge, b, ids
             set d to default document
             set ids to id of every document window of d
             set total to count of ids
+            if total = 0 then return "none"
             set onEdge to 0
             repeat with i in ids
                 set b to bounds of document window id i of d
                 if (item 1 of b) ≥ \(left) and (item 1 of b) < \(right) and (item 2 of b) ≥ \(top) and (item 2 of b) < \(bottom) then set onEdge to onEdge + 1
             end repeat
-            if total > 0 and total = onEdge then
+            if total > onEdge then return "visible"
+            if \(mayOpen ? "true" : "false") then
                 tell d to make new document window with properties {bounds:\(bounds)}
                 return "opened"
             end if
-            return "ok"
+            return "hidden"
         end tell
         """
         queue.async { [weak self] in
@@ -182,8 +195,16 @@ final class OmniFocusService {
             DispatchQueue.main.async {
                 guard let self = self else { return }
                 self.checking = false
-                if (r.value as? String) == "opened" {
-                    Log.write("OmniFocus: opened a window on the main screen (the only one left was EdgeDeck's, on the Edge)")
+                switch r.value as? String {
+                case "opened":
+                    self.lostSince = nil
+                    Log.write("OmniFocus: opened a window on the main screen (" +
+                              (openNow ? "switched to OmniFocus" : "still in front 10 s after its last window closed") +
+                              "; the only other one is EdgeDeck's, on the Edge)")
+                case "hidden":
+                    if self.lostSince == nil { self.lostSince = Date() }
+                default:
+                    self.lostSince = nil
                 }
                 // Log a failure once, not every 2 seconds.
                 if let e = r.error, e != self.lastCheckError { Log.write("OmniFocus: couldn't check its windows: \(e)") }
