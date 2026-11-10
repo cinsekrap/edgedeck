@@ -17,9 +17,9 @@
   const mockOmniFocus = [
     { k: 'g', n: 'EdgeDeck', d: 0 },
     { k: 't', id: 'a1', n: 'Write the OmniFocus widget', d: 1, f: true, pr: 'EdgeDeck', tags: ['Mac'], pl: +day0 + 14 * 3600e3, due: null },
-    { k: 't', id: 'a2', n: 'Test on the real panel', d: 1, pr: 'EdgeDeck', tags: [], pl: null, due: +day0 - 3600e3 },
+    { k: 't', id: 'a2', n: 'Test on the real panel', d: 1, pr: 'EdgeDeck', tags: [], est: 90, pl: null, due: +day0 - 3600e3 },
     { k: 'g', n: 'Home', d: 0 },
-    { k: 't', id: 'b1', n: 'Book the boiler service', d: 1, pr: 'Home', tags: ['Phone'], pl: +day0 + 42 * 3600e3, due: +day0 + 5 * 86400e3 },
+    { k: 't', id: 'b1', n: 'Book the boiler service', d: 1, pr: 'Home', tags: ['Phone'], est: 15, pl: +day0 + 42 * 3600e3, due: +day0 + 5 * 86400e3 },
     { k: 't', id: 'b2', n: 'Renew the car insurance', d: 1, pr: 'Home', tags: [], pl: null, due: null },
     { k: 't', id: 'b4', n: 'Fix the shed door', d: 1, pr: 'Home', tags: [], pl: null, due: null, dr: true },
     { k: 't', id: 'b3', n: 'Sort out the loft', d: 1, pr: 'Home', tags: ['Weekend'], pl: null, due: null },

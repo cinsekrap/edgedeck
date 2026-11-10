@@ -156,12 +156,18 @@
       let error = '';
       const pending = new Map();   // task id -> undo timer
 
+      // OmniFocus estimates are in minutes: 45 → "45m", 90 → "1h 30m", 120 → "2h".
+      const duration = (m) => {
+        const h = Math.floor(m / 60), r = Math.round(m % 60);
+        return h ? (r ? `${h}h ${r}m` : `${h}h`) : `${r}m`;
+      };
       const meta = (t) => {
         const now = Date.now();
         const bits = [];
         if (s.showProject !== false && t.pr) bits.push(esc(t.pr));
         if (t.pl || t.epl) bits.push(`<span class="of-planned">◷ ${esc(when(t.pl || t.epl))}</span>`);
         if (t.due) bits.push(`<span class="of-due${t.due < now ? ' overdue' : ''}">Due ${esc(when(t.due))}</span>`);
+        if (t.est > 0) bits.push(`<span class="of-est">⏱ ${esc(duration(t.est))}</span>`);
         if (s.showProject !== false && t.tags && t.tags.length) bits.push(esc(t.tags.join(', ')));
         return bits.join(' · ');
       };

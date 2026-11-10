@@ -38,7 +38,7 @@ final class OmniFocusService {
         }
     }
 
-    /// {perspective, rows: [{k:'g', n, d} | {k:'t', id, n, d, done, f, due, pl, epl, pr, tags, kids}]}
+    /// {perspective, rows: [{k:'g', n, d} | {k:'t', id, n, d, done, dr, f, due, est, pl, epl, pr, tags, kids}]}
     func view(perspective: String, _ done: @escaping (Any?, String?) -> Void) {
         guard !perspective.isEmpty else { done(nil, "Choose a perspective in the editor"); return }
         guard let edge = edgeFrame() else { done(nil, "The Edge display wasn't found"); return }
@@ -278,7 +278,7 @@ final class OmniFocusService {
                 let dropped = false;
                 try { dropped = !o.completed && (o.dropDate != null || o.taskStatus === Task.Status.Dropped); } catch (e) {}
                 rows.push({ k: 't', id: o.id.primaryKey, n: o.name, d: depth, done: o.completed, dr: dropped, f: o.flagged,
-                  due: ms(o.effectiveDueDate), pl: ms(o.plannedDate), epl: epl,
+                  due: ms(o.effectiveDueDate), est: o.estimatedMinutes, pl: ms(o.plannedDate), epl: epl,
                   pr: o.containingProject ? o.containingProject.name : '', tags: o.tags.map((t) => t.name),
                   kids: child.children.length > 0 });
               } else {
