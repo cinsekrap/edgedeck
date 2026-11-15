@@ -166,20 +166,39 @@
     },
 
     homeassistant(cfg) {
-      const st = h('div');
-      const show = () => st.replaceChildren(statusLine(HA.status === 'connected' ? true : /failed|offline/.test(HA.status) ? false : null,
-        'Status: ' + HA.status + (HA.status === 'connected' ? ` · ${Object.keys(HA.states).length} entities` : '')));
+      const st = h('div', { class: 'st-wide' });
+      const seen = h('div', { class: 'st-wide' });
+      const tokenUrl = () => { const u = HA.constructor.normalise(cfg.homeAssistant.url); return u && u !== 'mock' ? u + '/profile/security' : null; };
+      const tokenBtn = h('button', { class: 'ed-btn', onclick: () => { const u = tokenUrl(); if (u) EdgeBridge.call('action.run', { type: 'url', target: u }); } }, 'Open the token page in Home Assistant');
+      const show = () => {
+        const info = HA.statusInfo();
+        tokenBtn.disabled = !tokenUrl();
+        st.replaceChildren(statusLine(info.ok, info.text), ...(info.hint ? [note(info.hint)] : []),
+          h('div', { class: 'ed-row' },
+            h('button', { class: 'ed-btn', onclick: () => HA.reconnect(cfg.homeAssistant.url, cfg.homeAssistant.token) }, 'Test connection'),
+            tokenBtn));
+        if (HA.status !== 'connected') { seen.replaceChildren(note('Once connected, this shows what EdgeDeck can see.')); return; }
+        const counts = HA.typeCounts();
+        const clutter = Object.keys(HA.states).filter((id) => HA.isClutter(id)).length;
+        seen.replaceChildren(
+          h('div', { class: 'st-chips' }, ...counts.map(([label, n]) => h('span', { class: 'st-chip' }, h('b', {}, String(n)), ' ' + label)),
+            HA.hasRegistry ? h('span', { class: 'st-chip' }, h('b', {}, String(HA.areas.size)), ' Areas') : null),
+          note(HA.hasRegistry
+            ? `The entity picker groups entities by area${clutter ? ` and leaves out ${clutter} hidden or diagnostic entities (firmware, signal strength…) unless you ask for them` : ''}.`
+            : 'Home Assistant didn’t share its areas with EdgeDeck, so the entity picker can’t group by area and the Area widget won’t work. Reading areas needs a token from an administrator account.'));
+      };
       show();
-      S.cleanups.push(HA.subscribe(show));
+      S.cleanups.push(HA.subscribe((id) => { if (id === '*') show(); }));
       HA.configure(cfg.homeAssistant.url, cfg.homeAssistant.token);
       let t;
-      const changed = () => { save('homeAssistant'); clearTimeout(t); t = setTimeout(() => HA.configure(cfg.homeAssistant.url, cfg.homeAssistant.token), 800); };
+      const changed = () => { save('homeAssistant'); show(); clearTimeout(t); t = setTimeout(() => HA.configure(cfg.homeAssistant.url, cfg.homeAssistant.token), 800); };
       const field = (prop) => window.EditorForm.control(prop, cfg.homeAssistant, changed);
       return [
         card('Connection',
-          field({ key: 'url', label: 'URL', type: 'text', placeholder: 'http://homeassistant.local:8123' }),
-          field({ key: 'token', label: 'Long-lived access token', type: 'password', hint: 'Home Assistant → your profile → Security → Long-lived access tokens → Create token.' }),
+          field({ key: 'url', label: 'Address', type: 'text', placeholder: 'http://homeassistant.local:8123', hint: 'The address you open Home Assistant at in your browser.' }),
+          field({ key: 'token', label: 'Long-lived access token', type: 'password', hint: 'In Home Assistant: your profile → Security → Long-lived access tokens → Create token. It’s kept in your Keychain.' }),
           st),
+        card('What EdgeDeck can see', seen),
       ];
     },
 

@@ -74,7 +74,9 @@
           h('button', { class: 'ed-btn', onclick: (e) => { e.stopPropagation(); document.querySelector('.ed-add').classList.toggle('open'); } }, '+ Add widget'),
           h('div', { class: 'ed-menu' },
             Object.entries(window.Widgets).map(([type, def]) =>
-              h('button', { onclick: () => { document.querySelector('.ed-add').classList.remove('open'); addWidget(type); } }, def.name)))),
+              h('button', { onclick: () => { document.querySelector('.ed-add').classList.remove('open'); addWidget(type); } }, def.name)),
+            h('div', { class: 'ed-menu-sep' }),
+            h('button', { class: 'ed-menu-ha', onclick: () => { document.querySelector('.ed-add').classList.remove('open'); addFromHA(); } }, '🏠 From Home Assistant…'))),
         h('button', { class: 'ed-btn ed-settings-btn', onclick: () => EdgeBridge.call('settings.open') }, 'Settings…'),
         h('span', { class: 'ed-dirty' }),
         h('button', { class: 'ed-btn primary ed-save', onclick: save }, 'Save to Edge')),
@@ -231,7 +233,28 @@
         risky.push(`Key “${w.label || ''}” on “${pg.name}” opens ${String(w.actionTarget || '').slice(0, 80)}`);
       }
     }
-    return { types: [...types].map(([n, c]) => `${n} × ${c}`), risky };
+    return { types: [...types].map(([n, c]) => `${n} × ${c}`), risky, home: pages.flatMap((pg) => (pg.widgets || []).map((w) => homeRisk(w, pg)).filter(Boolean)) };
+  }
+
+  // Home Assistant controls that open the house up (unlock, open, disarm) or run
+  // commands on the Home Assistant server.
+  const OPENS = ['lock', 'alarm_control_panel', 'cover', 'valve'];
+  function homeRisk(w, pg) {
+    if (w.type === 'key' && w.actionType === 'ha') {
+      const target = String(w.actionTarget || '');
+      const [d, svc] = target.split('.');
+      const ent = String(w.actionEntity || '');
+      const ed = ent.split('.')[0];
+      const opens = (OPENS.includes(d) && /unlock|open|disarm|toggle/.test(svc || '')) || (d === 'homeassistant' && OPENS.includes(ed));
+      const runs = ['shell_command', 'python_script', 'hassio', 'rest_command', 'pyscript'].includes(d);
+      if (opens || runs) return `Key “${w.label || ''}” on “${pg.name}” calls ${target.slice(0, 60)}${ent ? ' on ' + ent.slice(0, 60) : ''}`;
+    }
+    if (w.type === 'ha-entity') {
+      const ed = String(w.entity || '').split('.')[0];
+      if (ed === 'lock' && w.confirmLock === false) return `“${w.entity}” on “${pg.name}” unlocks with a single tap`;
+      if (ed === 'cover' || ed === 'valve') return `“${w.entity}” on “${pg.name}” opens and closes with a tap`;
+    }
+    return null;
   }
 
   async function importFile(kind) {
@@ -247,7 +270,7 @@
       const ok = await reviewDialog(`Import “${p.name || 'Profile'}”`, [
         `${p.pages.length} page(s): ${p.pages.map((pg) => pg.name).join(', ')}`,
         `Widgets: ${info.types.join(', ') || 'none'}`,
-      ], info.risky, 'Import as a new profile');
+      ], info.risky, 'Import as a new profile', info.home);
       if (!ok) return;
       const prof = { id: EdgeDeck.newId(), name: uniqueName(p.name || 'Imported'), grid: Object.assign({}, profile().grid, p.grid), pages: freshIds(p.pages) };
       E.cfg.profiles.push(prof);
@@ -264,7 +287,7 @@
         `Made ${data.exported ? new Date(data.exported).toLocaleString('en-GB') : 'at an unknown time'}`,
         `${c.profiles.length} profile(s): ${c.profiles.map((pr) => pr.name).join(', ')}`,
         'This replaces all your profiles, the meeting page and every setting.',
-      ], info.risky, 'Replace everything');
+      ], info.risky, 'Replace everything', info.home);
       if (!ok) return;
       // Keep the current Home Assistant token if the backup left it out, but only for the
       // same server: a file must never be able to send your token somewhere else.
@@ -308,7 +331,7 @@
       ? [['Cancel', null], [yes, true, 'primary']]
       : [['Cancel', null], [no, false], [yes, true, 'primary']]);
   }
-  function reviewDialog(title, lines, risky, yes) {
+  function reviewDialog(title, lines, risky, yes, home = []) {
     const body = [h('ul', { class: 'ed-review' }, lines.map((l) => h('li', {}, l)))];
     if (risky.length) {
       body.push(h('div', { class: 'ed-warning' },
@@ -316,7 +339,13 @@
         h('ul', {}, risky.map((r) => h('li', {}, r))),
         h('p', {}, 'Only import it if you trust where it came from.')));
     }
-    return dialog(title, body, [['Cancel', null], [yes, true, risky.length ? 'danger' : 'primary']]);
+    if (home.length) {
+      body.push(h('div', { class: 'ed-warning' },
+        h('strong', {}, '⚠︎ This can unlock or open things in your home:'),
+        h('ul', {}, home.map((r) => h('li', {}, r))),
+        h('p', {}, 'Check these are the doors, locks and covers you expect.')));
+    }
+    return dialog(title, body, [['Cancel', null], [yes, true, risky.length || home.length ? 'danger' : 'primary']]);
   }
 
   function renderCanvas() {
@@ -446,6 +475,42 @@
     renderInspector();
   }
 
+  // Several Home Assistant entities at once: sensors share a glance tile, scenes a
+  // strip, and so on (HA.tilesFor). What doesn't fit goes on new pages after this one.
+  async function addFromHA() {
+    const ids = await window.HAEditor.pick({ title: 'Add from Home Assistant', multi: true });
+    if (!ids || !ids.length) return;
+    const items = HA.tilesFor(ids);
+    let page = curPage();
+    const g = curGrid();
+    const startPage = E.page;
+    const newPages = [];
+    let added = 0, skipped = 0, firstId = null;
+    for (const it of items) {
+      const ww = Math.min(it.w, g.cols), hh = Math.min(it.h, g.rows);
+      let spot = freeSpot(page, ww, hh);
+      if (!spot) {
+        if (onMeeting()) { skipped++; continue; }
+        let n = newPages.length + 2, name;
+        do { name = `${E.cfg.pages[startPage].name} ${n++}`; } while (E.cfg.pages.some((p) => p.name === name));
+        page = { name, widgets: [] };
+        E.cfg.pages.splice(startPage + 1 + newPages.length, 0, page);
+        newPages.push(page.name);
+        spot = freeSpot(page, ww, hh);
+      }
+      const w = Object.assign({ id: EdgeDeck.newId() }, it.widget, spot, { w: ww, h: hh });
+      page.widgets.push(w);
+      firstId = firstId || w.id;
+      added++;
+    }
+    markDirty();
+    E.selected = firstId;
+    renderAll();
+    EdgeDeck.toast(`Added ${added} widget${added === 1 ? '' : 's'}` +
+      (newPages.length ? ` (some on new page${newPages.length > 1 ? 's' : ''}: ${newPages.join(', ')})` : '') +
+      (skipped ? ` · ${skipped} didn’t fit` : ''), skipped ? 'error' : '');
+  }
+
   function deleteWidget(w) {
     const page = curPage();
     page.widgets = page.widgets.filter((o) => o.id !== w.id);
@@ -556,24 +621,8 @@
         loadShortcuts().then((names) => names.forEach((n) => dl.append(h('option', { value: n }))));
         return field(prop.label, h('div', {}, i, dl), 'From the Shortcuts app.');
       }
-      case 'entity': {
-        const listId = 'dl-ent-' + Math.random().toString(36).slice(2);
-        const i = h('input', { type: 'text', list: listId, placeholder: 'light.living_room', spellcheck: 'false' });
-        i.value = val ?? '';
-        const dl = h('datalist', { id: listId });
-        const ids = Object.keys(HA.states).filter((id) => !prop.domain || id.startsWith(prop.domain + '.')).sort();
-        for (const id of ids) dl.append(h('option', { value: id }, HA.states[id].attributes.friendly_name || id));
-        const hint = h('small', { class: 'ed-hint' });
-        const showHint = () => {
-          const st = HA.states[i.value];
-          hint.textContent = HA.status !== 'connected'
-            ? 'Home Assistant ' + HA.status + ' — set it up under Settings to pick from a list.'
-            : st ? (st.attributes.friendly_name || '') + ' · ' + st.state : (i.value ? 'Entity not found' : `${ids.length} entities available`);
-        };
-        showHint();
-        i.addEventListener('input', () => { set(i.value.trim()); showHint(); });
-        return h('label', { class: 'ed-field' }, h('span', { class: 'ed-label' }, prop.label), i, dl, hint);
-      }
+      case 'entity': case 'entities': case 'haarea': case 'haservice':
+        return window.HAEditor.control(prop, obj, set, val);
       case 'dynamic': {
         const s = h('select', {}, h('option', { value: val || '' }, val || 'Loading…'));
         s.value = val || '';
@@ -740,7 +789,7 @@
           hint: 'Optional. The Edge switches to this page while the app is in front, then back again. Not during meetings.',
         }, page, () => { markDirty(); renderTabs(); }),
         h('div', { class: 'ed-help' },
-          h('p', {}, 'Click a widget to edit it. Drag to move, drag the corner to resize. Add widgets with “+ Add widget”.'),
+          h('p', {}, 'Click a widget to edit it. Drag to move, drag the corner to resize. Add widgets with “+ Add widget”; “From Home Assistant…” there adds several entities at once.'),
           h('p', {}, 'On the Edge, swipe left or right to change page. Keys: Delete removes the selected widget, ⌘D duplicates, arrow keys nudge, ⌘S saves.'))),
       gridSection(`Grid for “${profile().name}”`, profile().grid));
   }

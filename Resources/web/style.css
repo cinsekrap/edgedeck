@@ -97,6 +97,10 @@ svg { width: 100%; height: 100%; fill: currentColor; display: block; }
 .slider.dragging .knob { transform: scale(1.2); }
 .slider.dragging .track { height: 12px; margin: -2px 0; }
 
+/* Material Design Icons (fonts/mdi.woff2, Apache 2.0), for Home Assistant's mdi: icons. */
+@font-face { font-family: 'MDI'; src: url('fonts/mdi.woff2') format('woff2'); font-display: block; }
+.mdi { font-family: 'MDI'; font-weight: 400 !important; font-style: normal; line-height: 1; -webkit-font-smoothing: antialiased; }
+
 /* ---------- Home Assistant tiles ---------- */
 .w-ha-entity { display: flex; flex-direction: column; justify-content: center; padding: 0 22px; gap: 4px; }
 .ha-top { display: flex; align-items: center; gap: 16px; min-width: 0; }
@@ -111,6 +115,113 @@ svg { width: 100%; height: 100%; fill: currentColor; display: block; }
 .w-ha-entity.has-slider .ha-icon { width: clamp(38px, 32cqh, 60px); height: clamp(38px, 32cqh, 60px); }
 .ha-slider { padding: 10px 0; }
 .ha-slider .fill { background: var(--accent); }
+.ha-icon.mdi { font-size: clamp(26px, 26cqh, 42px); color: #c9ced6; }
+.w-ha-entity.on .ha-icon.mdi { color: var(--accent); }
+.key-icon.mdi { color: #d9dee6; }
+.w-key.on .key-icon.mdi { color: var(--accent); }
+/* Climate on a wide tile: − / + on the right. */
+.w-ha-entity.has-steps { padding-right: calc(2 * clamp(52px, 56cqh, 80px) + 40px); }
+.ha-steps { position: absolute; right: 16px; top: 50%; transform: translateY(-50%); display: flex; gap: 12px; }
+.ha-step { width: clamp(52px, 56cqh, 80px); height: clamp(52px, 56cqh, 80px); border-radius: 50%; background: rgba(255,255,255,.1); font-size: 36px; font-weight: 400; line-height: 1; }
+
+/* Sensor glance: values side by side. */
+.w-ha-glance { display: flex; flex-direction: column; padding: 10px 12px; }
+.gl-title { padding: 4px 10px 0; font-size: calc(15px * var(--text-scale, 1)); font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+.gl-row { flex: 1; display: flex; min-height: 0; }
+.gl-cell { position: relative; flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 0 10px; border-radius: 14px; }
+.gl-cell + .gl-cell::before { content: ""; position: absolute; left: 0; top: 22%; bottom: 22%; width: 1px; background: rgba(255,255,255,.08); }
+.gl-top { display: flex; align-items: center; gap: 10px; max-width: 100%; }
+.gl-icon { flex: none; font-size: clamp(22px, 24cqh, 34px); }
+.gl-icon.mdi { color: var(--muted); }
+.gl-value { font-size: calc(clamp(26px, 34cqh, 52px) * var(--text-scale, 1)); font-weight: 650; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: -.01em; }
+.w-ha-glance.titled .gl-value { font-size: calc(clamp(24px, 27cqh, 46px) * var(--text-scale, 1)); }
+.gl-unit { font-size: .5em; font-weight: 500; color: var(--muted); margin-left: 3px; }
+.gl-name { max-width: 100%; font-size: calc(17px * var(--text-scale, 1)); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gl-cell.on .gl-value { color: var(--accent); }
+.gl-cell.unavailable { opacity: .5; }
+.gl-msg { margin: auto; color: var(--muted); font-size: calc(18px * var(--text-scale, 1)); text-align: center; }
+.gl-msg:empty { display: none; }
+
+/* Scene strip. */
+.w-ha-scenes { display: flex; flex-direction: column; padding: 10px; }
+.sc-row { flex: 1; display: grid; gap: 10px; min-height: 0; }
+.sc-btn { display: flex; align-items: center; justify-content: center; gap: 12px; min-width: 0; padding: 0 16px; border-radius: max(8px, calc(var(--radius) - 8px)); background: rgba(255,255,255,.07); transition: background .25s, transform .12s; }
+.sc-icon { flex: none; font-size: 30px; }
+.sc-icon.mdi { color: var(--accent); }
+.sc-name { min-width: 0; font-size: calc(21px * var(--text-scale, 1)); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sc-btn.done { background: color-mix(in srgb, var(--accent) 38%, transparent); }
+
+/* Area: header with a lamp per light, then temperature and humidity. */
+.w-ha-area { display: flex; flex-direction: column; justify-content: space-between; gap: 6px; padding: 16px 22px 18px; }
+.ar-head { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.ar-icon { flex: none; font-size: 30px; }
+.ar-icon.mdi { color: var(--muted); }
+.w-ha-area.on .ar-icon.mdi { color: var(--accent); }
+.ar-name { flex: 1; min-width: 0; font-size: calc(22px * var(--text-scale, 1)); font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ar-lamps { flex: none; display: flex; gap: 2px; }
+.ar-lamp { font-size: 28px; color: #4a505c; }
+.ar-lamp.on { color: #ffd27a; text-shadow: 0 0 14px rgba(255,210,122,.55); }
+.ar-climate { font-size: calc(clamp(22px, 30cqh, 42px) * var(--text-scale, 1)); font-weight: 600; font-variant-numeric: tabular-nums; white-space: pre; overflow: hidden; text-overflow: ellipsis; }
+.ar-climate.muted { font-size: calc(18px * var(--text-scale, 1)); font-weight: 500; color: var(--muted); white-space: nowrap; }
+
+/* Controls sheet (hold a Home Assistant tile). */
+.ha-backdrop { position: fixed; inset: 0; z-index: 950; background: rgba(0,0,0,.6); display: grid; place-items: center; }
+.ha-sheet { width: 1300px; max-width: calc(100% - 80px); max-height: calc(100% - 40px); display: flex; flex-direction: column; gap: 20px; overflow: hidden; background: #1b1f26; border-radius: 26px; padding: 22px 26px 28px; box-shadow: 0 30px 80px rgba(0,0,0,.6); }
+.ha-sheet.wide { width: 1900px; }
+.ha-sheet-head { display: flex; align-items: center; gap: 18px; }
+.ha-sheet-icon { flex: none; width: 70px; height: 70px; border-radius: 50%; display: grid; place-items: center; font-size: 34px; background: rgba(255,255,255,.07); }
+.ha-sheet-icon.mdi { font-size: 40px; color: #c9ced6; }
+.ha-sheet-icon.on { background: color-mix(in srgb, var(--accent) 30%, transparent); color: var(--accent); }
+.ha-sheet-text { flex: 1; min-width: 0; }
+.ha-sheet-title { font-size: calc(30px * var(--text-scale, 1)); font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ha-sheet-sub { margin-top: 2px; font-size: calc(20px * var(--text-scale, 1)); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ha-close { flex: none; width: 72px; height: 72px; border-radius: 50%; background: rgba(255,255,255,.08); font-size: 30px; color: #c6ccd6; }
+.ha-sheet-body { display: flex; flex-direction: column; gap: 20px; min-height: 0; }
+.ha-bar { width: 100%; padding: 26px; border-radius: 18px; background: rgba(255,255,255,.1); font-size: calc(26px * var(--text-scale, 1)); font-weight: 650; }
+.ha-bar.on { background: var(--accent); color: #05131c; }
+.ha-buttons { display: flex; gap: 14px; }
+.ha-btn { flex: 1; min-width: 0; padding: 26px 20px; border-radius: 18px; background: rgba(255,255,255,.1); font-size: calc(26px * var(--text-scale, 1)); font-weight: 650; white-space: nowrap; }
+.ha-btn.primary { background: var(--accent); color: #05131c; }
+.ha-btn.warn { background: rgba(255,170,60,.2); color: #ffc27a; }
+.ha-btn.current { background: rgba(255,255,255,.05); color: var(--muted); }
+.ha-btn.mdi { font-size: 44px; padding: 18px 20px; }
+.ha-control { display: flex; flex-direction: column; gap: 10px; }
+.ha-control-top { display: flex; justify-content: space-between; align-items: baseline; }
+.ha-control-label { font-size: calc(16px * var(--text-scale, 1)); font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+.ha-control-value { font-size: calc(24px * var(--text-scale, 1)); font-weight: 650; font-variant-numeric: tabular-nums; }
+.ha-big-slider { padding: 0; }
+.ha-big-slider .track, .ha-big-slider.dragging .track { height: 64px; margin: 0; border-radius: 16px; background: rgba(255,255,255,.1); overflow: hidden; }
+.ha-big-slider .fill { border-radius: 0; background: var(--accent); }
+.ha-big-slider.kelvin .track { background: linear-gradient(90deg, #ffa95c, #fff1dc 55%, #cfe2ff); }
+.ha-big-slider.kelvin .fill { background: transparent; border-right: 5px solid #111; }
+.ha-chips { display: flex; flex-wrap: wrap; gap: 10px; }
+.ha-chip { padding: 16px 28px; border-radius: 999px; background: rgba(255,255,255,.08); font-size: calc(22px * var(--text-scale, 1)); font-weight: 600; }
+.ha-chip.on { background: var(--accent); color: #05131c; }
+.ha-stepper { display: flex; align-items: center; justify-content: space-around; gap: 40px; padding: 4px 0; }
+.ha-now { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.ha-now-value { font-size: calc(60px * var(--text-scale, 1)); font-weight: 300; font-variant-numeric: tabular-nums; }
+.ha-set { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.ha-set-row { display: flex; align-items: center; gap: 28px; }
+.ha-round { width: 100px; height: 100px; border-radius: 50%; background: rgba(255,255,255,.1); font-size: 50px; font-weight: 400; line-height: 1; }
+.ha-target { min-width: 190px; text-align: center; font-size: calc(66px * var(--text-scale, 1)); font-weight: 650; font-variant-numeric: tabular-nums; }
+.ha-target.pending { color: var(--accent); }
+.ha-big-value { padding: 6px 0 10px; font-size: calc(72px * var(--text-scale, 1)); font-weight: 650; font-variant-numeric: tabular-nums; }
+.ha-note { font-size: calc(20px * var(--text-scale, 1)); color: var(--muted); }
+/* The list version (an area's lights and switches). */
+.ha-list { display: flex; flex-direction: column; gap: 10px; overflow-y: auto; min-height: 0; max-height: 440px; }
+.ha-list-row { flex: none; display: flex; align-items: center; gap: 18px; min-height: 86px; padding: 0 24px; border-radius: 18px; background: rgba(255,255,255,.05); }
+.ha-list-row .ha-icon { width: 58px; height: 58px; font-size: 28px; }
+.ha-list-row .ha-icon.mdi { font-size: 34px; }
+.ha-list-row .ha-text { flex: 1; }
+.ha-list-row .ha-name { font-size: calc(24px * var(--text-scale, 1)); }
+.ha-list-row .ha-state { font-size: calc(19px * var(--text-scale, 1)); }
+.ha-list-row.on .ha-icon { background: color-mix(in srgb, var(--accent) 30%, transparent); }
+.ha-list-row.on .ha-icon.mdi, .ha-list-row.on .ha-state { color: var(--accent); }
+.ha-list-row.unavailable { opacity: .55; }
+.ha-row-slider { flex: none; width: 42%; padding: 26px 0; }
+.ha-row-slider .track, .ha-row-slider.dragging .track { height: 14px; margin: 0; border-radius: 7px; }
+.ha-row-slider .fill { background: var(--accent); border-radius: 7px; }
+.ha-row-slider .knob { width: 30px; height: 30px; margin: -15px 0 0 -15px; transform: scale(1); }
 
 .w-ha-camera { background: #000; }
 .cam-img:not([src]) { display: none; }

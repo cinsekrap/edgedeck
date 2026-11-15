@@ -14,7 +14,7 @@ A touch dashboard for the Corsair Xeneon Edge on macOS.
   - **OmniFocus**: any perspective, as it looks in OmniFocus. Tick tasks off and set planned dates from the Edge.
   - **Elgato Key Lights**: power, brightness and colour temperature, found automatically on your network.
   - **App badges**: unread counts from the Dock (Mail, Outlook, Slack, WhatsApp…), with your own labels.
-  - **Home Assistant** entities and cameras.
+  - **Home Assistant**: entities (hold one for its full controls), cameras, a sensor glance, a strip of scenes, and whole areas.
   - **Script**: shows the result of an AppleScript or JXA script. Also a clock, text labels and a timer/stopwatch.
 - **Meeting controls for Microsoft Teams and Zoom:** mute, camera, background blur, raise hand, reactions, chat, stop sharing and leave, showing live state. When a meeting starts, the Edge wakes and switches to the meeting page (optionally turning your Key Lights on), then goes back afterwards. Works through Accessibility, so it needs that permission.
 - **Profiles** of pages, with export/import, plus pages that appear automatically when a given app is in front.
@@ -72,21 +72,27 @@ The Edge needs both video and USB data. A single USB-C cable carries both. If yo
 
 ## Home Assistant
 
-Open the editor, click **Settings**, and enter:
+Open **Settings → Home Assistant** (or tick it during setup) and enter:
 
-- URL, e.g. `http://homeassistant.local:8123` (or your Home Assistant VM's IP address)
-- A long-lived access token (Home Assistant → your profile → Security → Long-lived access tokens). EdgeDeck keeps it in your login Keychain, not in the config file.
+- the address you open Home Assistant at, e.g. `http://homeassistant.local:8123` (or its IP address)
+- a long-lived access token (Home Assistant → your profile → Security → Long-lived access tokens). EdgeDeck keeps it in your login Keychain, not in the config file.
 
-When it connects, entity fields in the editor give you a list of your entities to pick from. The dashboard talks to Home Assistant over its WebSocket API, so you don't need any CORS settings.
+Settings says what's wrong if it can't connect (address not found, token turned down…), has a **Test connection** button, and lists what EdgeDeck can see by type. The dashboard talks to Home Assistant over its WebSocket API, so you don't need any CORS settings.
 
-Entity tiles behave like this:
+In the editor, entity fields open a picker: search by name, area or ID, filter by type (lights, sensors, climate…), grouped by area, with each entity's current state. Hidden and diagnostic entities (firmware, signal strength…) are left out unless you ask for them. Areas need a token from an administrator account. **+ Add widget → From Home Assistant…** adds several entities at once: sensors share a glance tile, scenes share a strip, and anything that doesn't fit goes on a new page.
 
-- **Tap** toggles lights, switches, fans, covers and input booleans. It also runs scenes and scripts, and presses buttons.
-- **Lights** in tiles two or more columns wide get a brightness slider.
-- **Locks** lock on a tap, but unlocking needs a press and hold (you can turn this off per tile).
+Widgets:
+
+- **Entity**: a tap toggles lights, switches, fans and covers, runs scenes and scripts, and presses buttons. A tap on a sensor shows its details. Lights in tiles two or more columns wide get a brightness slider, and heating in tiles four or more wide gets − / +.
+- **Hold any entity** for its controls: brightness and colour temperature, target temperature and mode, cover position, volume and source, lock and unlock. A locked lock does nothing on a tap: hold it, then tap **Unlock** (you can turn this off per tile).
+- **Sensors**: a few values side by side, big.
+- **Scenes**: a row of buttons for scenes, scripts and buttons.
+- **Area**: a room's lights (lit or grey), temperature and humidity. A tap turns its lights off (or on, if none are); hold it for each light and switch.
 - **Camera** tiles refresh every few seconds. Tap one to see it full screen, and tap again to close it.
 
-If you set the URL to `mock`, you get sample entities, which is handy for trying out layouts.
+Icons come from Home Assistant where it has them (`mdi:` names, drawn with the bundled Material Design Icons font). You can also type an emoji or an `mdi:` name yourself.
+
+If you set the address to `mock`, you get sample entities and areas, which is handy for trying out layouts.
 
 ## Keys
 
@@ -97,11 +103,11 @@ Each key can do one of these:
 - send a keyboard shortcut (`cmd+shift+4`, `ctrl+up`, `cmd+alt+f13`, …)
 - open a URL
 - control media or volume
-- call a Home Assistant service (`light.toggle` plus an entity)
+- control Home Assistant: pick an entity, then one of its actions (toggle, turn on at 40%, set 21°…), or any service
 - run a shell command
 - jump to a page
 
-A key can also light up when a Home Assistant entity is on.
+A key can also light up when a Home Assistant entity is on (a Home Assistant key follows its own entity by default).
 
 ## If touch doesn't line up
 
@@ -121,7 +127,7 @@ EdgeDeck holds a lot of access to your Mac (Accessibility, Input Monitoring, con
 
 - **Only its own pages.** The dashboard, editor and settings are local HTML pages inside the signed app. They can't navigate anywhere else: web links open in your browser. The Mac side ignores messages from anything other than those pages. Release builds don't load pages from anywhere outside the app bundle.
 - **Outside text is shown as text.** Calendar events, OmniFocus tasks, Home Assistant names, app names and weather are inserted as plain text, never as HTML.
-- **Imports are reviewed.** Importing a profile or restoring a backup lists every Script widget, shell/AppleScript/JavaScript key and non-web URL key in it before anything is added. A backup without a Home Assistant token only reuses yours if it points at the same server.
+- **Imports are reviewed.** Importing a profile or restoring a backup lists every Script widget, shell/AppleScript/JavaScript key and non-web URL key in it before anything is added. It also lists Home Assistant controls that unlock, open or disarm things (locks, covers, alarms) or run commands on the Home Assistant server. A backup without a Home Assistant token only reuses yours if it points at the same server.
 - **Secrets.** The Home Assistant token lives in the Keychain. Exported backups leave it out unless you choose to include it, and profile exports never contain it.
 - **The log** (`~/Library/Logs/EdgeDeck.log`) records what EdgeDeck did, not what's in your meetings, calendar or tasks.
 
@@ -150,4 +156,6 @@ Xeneon Edge touch (USB HID) ──▶ TouchReader (IOKit, seized) ──▶ HID 
 
 EdgeDeck is free software, released under the [GNU General Public License v3.0](LICENSE). Copyright © 2026 Nic Parkes.
 
-EdgeDeck isn't affiliated with Corsair, Microsoft, Zoom, Elgato or The Omni Group. Xeneon is a trademark of Corsair.
+It includes the [Material Design Icons](https://pictogrammers.com/library/mdi/) font by Pictogrammers (version 7.4.47, Apache License 2.0; see `Resources/web/fonts/MDI-LICENSE.txt`).
+
+EdgeDeck isn't affiliated with Corsair, Microsoft, Zoom, Elgato, The Omni Group or Home Assistant. Xeneon is a trademark of Corsair.

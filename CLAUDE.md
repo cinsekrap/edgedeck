@@ -104,12 +104,19 @@ A macOS menu-bar app that runs a touch dashboard on the Corsair Xeneon Edge
 - `DockBadges.swift`: Dock badge counts via Accessibility (Dock items' AXStatusLabel).
 - `Scripts.swift`: runs AppleScript/JXA via osascript (script on stdin, 20 s timeout); JSON output is parsed.
 - Web: `core.js` (config, grid rendering, gestures, pages/swipe), `widgets.js` (registry: key, media,
-  ha-entity, ha-camera, clock, label — each has name, size, props, create), `integrations.js` (system, audio, calendar, weather,
+  clock, label — each has name, size, props, create; exports `WidgetKit` {makeSlider, throttle, esc}), `integrations.js` (system, audio, calendar, weather,
   script, timer; weather calls Open-Meteo directly from JS and picks its layout from the tile's size: compact,
   wide with an hourly strip, or 3+ rows tall with details + hourly + daily), `omnifocus.js` (perspective widget, 3 s undo on complete,
   planned-date sheet with working-day presets), `teams.js` (EdgeTeams state + Teams widget; a meeting
   starting wakes the Edge and shows the `teams.page` page, returning afterwards), `ha.js` (Home Assistant WebSocket
-  client; URL "mock" gives sample entities), `editor.js` (layout editor built from widget `props`;
+  client + shared entity knowledge: TYPES for the picker's chips, describe/tapService/iconFor, statusInfo for Settings,
+  tilesFor(ids) to turn entities into widgets; reads the area/device/entity registries the HA frontend uses —
+  `config/*_registry/list*`, admin token — and works without them; URL "mock" gives sample entities, areas, registry
+  and services), `ha-widgets.js` (ha-entity, ha-glance, ha-scenes, ha-area, ha-camera; hold opens the controls sheet,
+  `HASheet`; a locked lock only unlocks from the sheet), `ha-editor.js` (`HAEditor.pick` entity picker; field types
+  entity/entities/haarea/haservice; a key's action remembers its entity in `actionFor` and its options in
+  `actionData`), `mdi-icons.js` + `fonts/mdi.woff2` (Material Design Icons 7.4.47, Apache 2.0, regenerated with
+  `tools/make-mdi-map.js`; `HA.setIcon` draws `mdi:` names), `editor.js` (layout editor built from widget `props`;
   saves only `pages`), `elgato.js` (Key Lights widget), `badges.js` (app badges
   widget; editor `checklist` control), `settings.js` (Settings window: sidebar sections, each change saves its config section at once
   via config.update; reuses the editor's form controls through `window.EditorForm`).
@@ -128,7 +135,7 @@ A macOS menu-bar app that runs a touch dashboard on the Corsair Xeneon Edge
   integrations checklist with inline permissions, starting layout, done). UserDefaults `setupDone`/`setupStep` (resumes
   after relaunch; existing configs count as done). The Edge shows "Setting up…" via `EdgeDeck.setupProgress`. First run
   replaces the starter layout; re-running adds the chosen layout as a new profile. Templates: `EdgeDeck.buildTemplate`
-  (work / minimal / blank, packed by `packPages`); the default config uses Minimal (no unconfigured HA tiles).
+  (work / minimal / blank, packed by `packPages`; a Home page only from HA entities picked in setup, via `HA.tilesFor`); the default config uses Minimal (no unconfigured HA tiles).
   Menu bar → Set Up EdgeDeck…. Input Monitoring is no longer requested at launch until setup is done.
 - Config: `~/Library/Application Support/EdgeDeck/config.json`. Log: `~/Library/Logs/EdgeDeck.log`.
 
@@ -140,7 +147,8 @@ A macOS menu-bar app that runs a touch dashboard on the Corsair Xeneon Edge
   from any config written (a missing key leaves the stored token; empty deletes it); `loadForPage` (config.get)
   adds it back. Old plain-text tokens are migrated on first load, backup included.
 - Widgets must escape outside text (`esc()` in each file, or textContent / `h()`). Never put data in innerHTML raw.
-- Import review (editor.js `describePages`) flags Script widgets, shell/AppleScript/JXA keys, non-http(s) URL keys.
+- Import review (editor.js `describePages`) flags Script widgets, shell/AppleScript/JXA keys, non-http(s) URL keys,
+  and (`homeRisk`) HA keys/tiles that unlock, open or disarm, or call shell_command-style services.
   Backup restore reuses the current HA token only when the URL matches.
 - Don't log meeting/window titles, calendar events, task names or people's names.
 

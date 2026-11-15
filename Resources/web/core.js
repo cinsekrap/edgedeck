@@ -48,7 +48,8 @@
   }
 
   const appKey = (label, id) => ({ w: 1, h: 1, widget: { type: 'key', label, actionType: 'app', actionTarget: id } });
-  function buildTemplate(kind, features = []) {
+  // opts.haEntities: Home Assistant entities picked during setup, for a Home page.
+  function buildTemplate(kind, features = [], opts = {}) {
     const has = (f) => features.includes(f);
     const grid = { cols: 14, rows: 4, gap: 14, padding: 18 };
     const W = (type, w, h, props = {}) => ({ w, h, widget: Object.assign({ type }, props) });
@@ -66,9 +67,6 @@
       if (has('meetings')) work.push(W('audio', 2, 1, { mode: 'mic' }));
       work.push(W('system', 5, 1, {}));
       groups = [{ name: 'Work', items: work }];
-      if (has('homeassistant')) {
-        groups.push({ name: 'Home', items: [W('ha-entity', 3, 1, { entity: '', showSlider: true }), W('ha-entity', 3, 1, { entity: '', showSlider: true }), W('ha-camera', 6, 2, { entity: '', refresh: 5 })] });
-      }
     } else {   // minimal
       const main = [W('clock', 3, 2, { format24: true, showDate: true })];
       main.push(has('media') ? W('media', 5, 2, { showVolume: true, blurArtwork: true }) : W('weather', 5, 2, { location: '', units: 'c', forecastDays: 3 }));
@@ -78,6 +76,9 @@
       if (has('calendar')) main.push(W('calendar', 4, 2, { days: 1, limit: 4, allDay: false }));
       groups = [{ name: 'Main', items: main }];
     }
+    // A Home page only with things in it (no empty "Choose an entity" tiles).
+    const ha = has('homeassistant') && kind !== 'blank' && Array.isArray(opts.haEntities) ? opts.haEntities : [];
+    if (ha.length && window.HA) groups.push({ name: 'Home', items: window.HA.tilesFor(ha) });
     const names = { work: 'Work desk', minimal: 'Minimal', blank: 'Blank' };
     return { id: newId(), name: names[kind] || 'Layout', grid, pages: packPages(grid, groups) };
   }

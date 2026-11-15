@@ -23,7 +23,7 @@
     ['homeassistant', 'Home Assistant', 'Lights, switches and cameras from your Home Assistant.', []],
   ];
 
-  const S = { cfg: null, firstRun: true, step: 0, features: new Set(['calendar', 'media']), template: 'work', cleanups: [], lightsFound: 0 };
+  const S = { cfg: null, firstRun: true, step: 0, features: new Set(['calendar', 'media']), template: 'work', cleanups: [], lightsFound: 0, haEntities: [] };
 
   // replaceChildren() would print null/false as text; drop empty slots first.
   const fill = (el, ...kids) => el.replaceChildren(...kids.flat().filter((k) => k != null && k !== false));
@@ -145,13 +145,37 @@
         media: () => h('div', { class: 'su-extra' }, note('macOS asks to let EdgeDeck control Spotify or Music the first time it reads what’s playing.')),
         homeassistant: () => {
           const ha = S.cfg.homeAssistant;
+          let t;
+          const connect = () => { clearTimeout(t); t = setTimeout(() => HA.configure(ha.url, ha.token), 700); };
           const url = h('input', { type: 'text', placeholder: 'http://homeassistant.local:8123' });
           url.value = ha.url || '';
-          url.addEventListener('input', () => (ha.url = url.value.trim()));
+          url.addEventListener('input', () => { ha.url = url.value.trim(); connect(); });
           const token = h('input', { type: 'password', placeholder: 'Long-lived access token' });
           token.value = ha.token || '';
-          token.addEventListener('input', () => (ha.token = token.value.trim()));
-          return h('div', { class: 'su-extra su-ha' }, url, token, note('Home Assistant → your profile → Security → Long-lived access tokens → Create token.'));
+          token.addEventListener('input', () => { ha.token = token.value.trim(); connect(); });
+          const status = h('div', { class: 'su-ha-status' });
+          const show = () => {
+            const info = HA.statusInfo();
+            const picked = S.haEntities.filter((id) => HA.states[id] || HA.status !== 'connected');
+            fill(status, statusLine(info.ok, info.text), info.hint ? note(info.hint) : null,
+              HA.status === 'connected' ? h('div', { class: 'su-ha-pick' },
+                h('button', {
+                  class: 'ed-btn' + (picked.length ? '' : ' primary'),
+                  onclick: async () => {
+                    const r = await window.HAEditor.pick({ title: 'Pick a few things for your Home page', multi: true, selected: S.haEntities });
+                    if (r) { S.haEntities = r; show(); }
+                  },
+                }, picked.length ? 'Change…' : 'Pick things for a Home page…'),
+                h('span', { class: 'st-note' }, picked.length
+                  ? picked.slice(0, 4).map((id) => HA.name(id)).join(', ') + (picked.length > 4 ? ` and ${picked.length - 4} more` : '')
+                  : 'Lights, switches, sensors, scenes, cameras… You can add more later in the editor.')) : null);
+          };
+          const unsub = HA.subscribe((id) => { if (id === '*') show(); });
+          S.cleanups.push(unsub, () => clearTimeout(t));
+          HA.configure(ha.url, ha.token);
+          show();
+          return h('div', { class: 'su-extra su-ha' }, url, token,
+            note('Home Assistant → your profile → Security → Long-lived access tokens → Create token.'), status);
         },
       };
       function render() {
@@ -173,9 +197,10 @@
 
     layout() {
       const has = (f) => S.features.has(f);
+      const homePage = has('homeassistant') && S.haEntities.length > 0;
       const describe = {
-        work: ['Work desk', [has('omnifocus') && 'OmniFocus', has('calendar') && 'calendar', has('media') && 'now playing', 'clock', has('lights') && 'Key Lights', has('badges') && 'unread counts', 'system stats', has('homeassistant') && 'a Home page'].filter(Boolean).join(', ')],
-        minimal: ['Minimal', ['clock', has('media') ? 'now playing' : 'weather', 'four app keys', has('lights') && 'Key Lights', has('calendar') && 'calendar'].filter(Boolean).join(', ')],
+        work: ['Work desk', [has('omnifocus') && 'OmniFocus', has('calendar') && 'calendar', has('media') && 'now playing', 'clock', has('lights') && 'Key Lights', has('badges') && 'unread counts', 'system stats', homePage && 'a Home page'].filter(Boolean).join(', ')],
+        minimal: ['Minimal', ['clock', has('media') ? 'now playing' : 'weather', 'four app keys', has('lights') && 'Key Lights', has('calendar') && 'calendar', homePage && 'a Home page'].filter(Boolean).join(', ')],
         blank: ['Blank', 'An empty page to build your own.'],
       };
       const box = h('div', { class: 'su-layouts' });
@@ -219,7 +244,7 @@
     const f = S.features;
     const cfg = S.cfg;
     const teams = Object.assign({}, cfg.teams, { enabled: f.has('meetings'), autoPage: f.has('meetings'), lightsOn: f.has('meetings') && f.has('lights') && S.lightsInMeetings !== false });
-    const profile = EdgeDeck.buildTemplate(S.template, [...f]);
+    const profile = EdgeDeck.buildTemplate(S.template, [...f], { haEntities: S.haEntities });
     let profiles = cfg.profiles;
     // First run: replace the starter layout. Running setup again: keep what you've built.
     const existing = !S.firstRun && profiles.some((p) => p.pages.some((pg) => pg.widgets.length));
