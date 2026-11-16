@@ -151,6 +151,8 @@ final class OmniFocusService {
 
     private var watchTimer: Timer?
     private var checking = false
+    /// You switched to OmniFocus while a check was running: check again, straight away, after it.
+    private var openNowPending = false
     private var lastCheckError: String?
     /// When we first saw OmniFocus in front with only EdgeDeck's hidden window.
     private var lostSince: Date?
@@ -186,7 +188,8 @@ final class OmniFocusService {
     }
 
     private func ensureVisibleWindow(openNow: Bool) {
-        guard !checking, isRunning, NSWorkspace.shared.frontmostApplication?.bundleIdentifier == Self.bundleID,
+        if checking { if openNow { openNowPending = true }; return }
+        guard isRunning, NSWorkspace.shared.frontmostApplication?.bundleIdentifier == Self.bundleID,
               let edge = edgeFrame(), let main = NSScreen.screens.first else { return }
         let mayOpen = openNow || (lostSince.map { Date().timeIntervalSince($0) >= closeGrace } ?? false)
         checking = true
@@ -198,26 +201,38 @@ final class OmniFocusService {
         let w = min(1200, v.width - 80), h = min(800, v.height - 80)
         let x = Int(v.midX - w / 2), y = Int(mainHeight - v.midY - h / 2)
         let bounds = "{\(x), \(y), \(x + Int(w)), \(y + Int(h))}"
-        // Replies "visible" (you have a window), "none" (no windows at all),
-        // "hidden" (only EdgeDeck's, on the Edge) or "opened".
+        // Replies "<result> <windows> <on the Edge> <minimised>", where result is
+        // "visible" (you have a window you can see), "none" (no windows at all),
+        // "hidden" (only EdgeDeck's, or minimised ones) or "opened".
         let script = """
         tell application id "\(Self.bundleID)"
-            local d, total, onEdge, b, ids
+            local d, total, onEdge, mini, b, ids, w, isMini, counts
             set d to default document
             set ids to id of every document window of d
             set total to count of ids
-            if total = 0 then return "none"
+            if total = 0 then return "none 0 0 0"
             set onEdge to 0
+            set mini to 0
             repeat with i in ids
-                set b to bounds of document window id i of d
-                if (item 1 of b) ≥ \(left) and (item 1 of b) < \(right) and (item 2 of b) ≥ \(top) and (item 2 of b) < \(bottom) then set onEdge to onEdge + 1
+                set w to document window id i of d
+                set b to bounds of w
+                set isMini to false
+                try
+                    set isMini to miniaturized of w
+                end try
+                if (item 1 of b) ≥ \(left) and (item 1 of b) < \(right) and (item 2 of b) ≥ \(top) and (item 2 of b) < \(bottom) then
+                    set onEdge to onEdge + 1
+                else if isMini then
+                    set mini to mini + 1
+                end if
             end repeat
-            if total > onEdge then return "visible"
+            set counts to " " & total & " " & onEdge & " " & mini
+            if total > onEdge + mini then return "visible" & counts
             if \(mayOpen ? "true" : "false") then
                 tell d to make new document window with properties {bounds:\(bounds)}
-                return "opened"
+                return "opened" & counts
             end if
-            return "hidden"
+            return "hidden" & counts
         end tell
         """
         queue.async { [weak self] in
@@ -225,16 +240,30 @@ final class OmniFocusService {
             DispatchQueue.main.async {
                 guard let self = self else { return }
                 self.checking = false
-                switch r.value as? String {
+                let parts = (r.value as? String ?? "").split(separator: " ").map(String.init)
+                let result = parts.first ?? ""
+                let counts = parts.count == 4
+                    ? "\(parts[1]) window(s): \(parts[2]) EdgeDeck's on the Edge, \(parts[3]) minimised" : ""
+                switch result {
                 case "opened":
                     self.lostSince = nil
                     Log.write("OmniFocus: opened a window on the main screen (" +
                               (openNow ? "switched to OmniFocus" : "still in front 10 s after its last window closed") +
-                              "; the only other one is EdgeDeck's, on the Edge)")
+                              "; \(counts))")
                 case "hidden":
-                    if self.lostSince == nil { self.lostSince = Date() }
+                    if self.lostSince == nil {
+                        self.lostSince = Date()
+                        Log.write("OmniFocus: in front with no window you can see (\(counts)); opening one in 10 s unless you switch away")
+                    }
                 default:
+                    if openNow, r.error == nil {
+                        Log.write("OmniFocus: switched to it; " + (result == "visible" ? "you have a window (\(counts))" : "no windows at all, left to OmniFocus"))
+                    }
                     self.lostSince = nil
+                }
+                if self.openNowPending {
+                    self.openNowPending = false
+                    self.ensureVisibleWindow(openNow: true)
                 }
                 // Log a failure once, not every 2 seconds.
                 if let e = r.error, e != self.lastCheckError { Log.write("OmniFocus: couldn't check its windows: \(e)") }
