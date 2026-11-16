@@ -11,6 +11,9 @@ import AppKit
 /// position: any OmniFocus window whose top-left lies on the Edge is ours.
 ///
 /// Requests run one at a time on a serial queue, since they share the window.
+/// While you're using OmniFocus (it's the front app), reads are paused: switching
+/// the parked window's perspective then makes OmniFocus jump between windows
+/// under you. The widgets keep what they last showed and catch up when you leave.
 /// Needs Automation permission for OmniFocus (macOS asks the first time).
 final class OmniFocusService {
     static let bundleID = "com.omnigroup.OmniFocus4"
@@ -19,6 +22,32 @@ final class OmniFocusService {
     var edgeFrame: () -> NSRect? = { nil }
 
     private let queue = DispatchQueue(label: "edgedeck.omnifocus")
+
+    /// Called on the main thread when you start (true) or stop (false) using OmniFocus.
+    var onInUseChanged: ((Bool) -> Void)?
+
+    private let inUseLock = NSLock()
+    private var _inUse = false
+    /// OmniFocus is the front app (read from the request queue as well as main).
+    private(set) var inUse: Bool {
+        get { inUseLock.lock(); defer { inUseLock.unlock() }; return _inUse }
+        set { inUseLock.lock(); _inUse = newValue; inUseLock.unlock() }
+    }
+
+    init() {
+        inUse = NSWorkspace.shared.frontmostApplication?.bundleIdentifier == Self.bundleID
+        NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didActivateApplicationNotification,
+                                                          object: nil, queue: .main) { [weak self] note in
+            guard let self = self else { return }
+            let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
+            let now = app?.bundleIdentifier == Self.bundleID
+            guard now != self.inUse else { return }
+            self.inUse = now
+            Log.write(now ? "OmniFocus: in front, pausing the Edge's reads so its windows stay put"
+                          : "OmniFocus: no longer in front, reading again")
+            self.onInUseChanged?(now)
+        }
+    }
 
     var isRunning: Bool {
         !NSRunningApplication.runningApplications(withBundleIdentifier: Self.bundleID).isEmpty
@@ -42,7 +71,8 @@ final class OmniFocusService {
     func view(perspective: String, _ done: @escaping (Any?, String?) -> Void) {
         guard !perspective.isEmpty else { done(nil, "Choose a perspective in the editor"); return }
         guard let edge = edgeFrame() else { done(nil, "The Edge display wasn't found"); return }
-        run(done) {
+        if inUse { done(["paused": true], nil); return }
+        run(done, skipWhileInUse: true) {
             let name = Self.appleScriptString(perspective)
             let e = edge.insetBy(dx: 40, dy: 40)
             let mainHeight = NSScreen.screens.first?.frame.height ?? edge.maxY
@@ -223,10 +253,16 @@ final class OmniFocusService {
 
     // MARK: Plumbing
 
-    private func run(_ done: @escaping (Any?, String?) -> Void, script: @escaping () -> String,
-                     then: ((Bool) -> Void)? = nil) {
+    /// `skipWhileInUse`: if you've switched to OmniFocus while this waited its turn,
+    /// answer {paused: true} instead of touching its windows.
+    private func run(_ done: @escaping (Any?, String?) -> Void, skipWhileInUse: Bool = false,
+                     script: @escaping () -> String, then: ((Bool) -> Void)? = nil) {
         guard isRunning else { done(nil, "OmniFocus isn't open"); return }
         queue.async {
+            if skipWhileInUse && self.inUse {
+                DispatchQueue.main.async { done(["paused": true], nil) }
+                return
+            }
             let r = Scripts.run(source: script(), language: "applescript", timeout: 30)
             var value = r.value
             var error = r.error

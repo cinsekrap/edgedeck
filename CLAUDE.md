@@ -96,6 +96,9 @@ A macOS menu-bar app that runs a touch dashboard on the Corsair Xeneon Edge
   OmniFocus document window parked on the Edge (hidden under the dashboard; recognised by its position), sets its
   perspective name, waits for the content to settle, and reads the content tree via `evaluate javascript` (Omni
   Automation) as JSON. Complete / set plannedDate by task id. Serial queue; Automation permission for OmniFocus.
+  While OmniFocus is the front app, `view` answers {paused: true} without touching the window (switching the parked
+  window's perspective made OmniFocus jump between windows under you); widgets keep their list, show "Paused", and
+  reload on the `edge-omnifocus-in-use` event when you leave. Completing and planning still work (by id, no window).
   Confirmed working on the real panel (Nov 2026): grouping headings (incl. date groups), complete with undo,
   planned-date sheet, newspaper columns on wide widgets. Possible polish: repeat a group heading in a new column.
 - `ElgatoLights.swift`: Elgato Key Lights via Bonjour (_elg._tcp, declared in NSBonjourServices) + plain HTTP on 9123

@@ -24,6 +24,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         bridge.teams = teams
         bridge.omnifocus.edgeFrame = { DashboardController.edgeScreen()?.frame }
         bridge.omnifocus.watchForLostWindow()
+        bridge.omnifocus.onInUseChanged = { [weak self] inUse in
+            self?.bridge.broadcast("window.dispatchEvent(new CustomEvent('edge-omnifocus-in-use', { detail: \(inUse) }))")
+        }
         bridge.updater.onChange = { [weak self] in
             guard let self = self else { return }
             self.bridge.broadcast("window.Settings && Settings.updatesChanged && Settings.updatesChanged(\(JSON.string(self.bridge.updater.state)))")

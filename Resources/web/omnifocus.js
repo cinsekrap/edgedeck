@@ -154,6 +154,7 @@
       list._edgeScroll = true;
       let rows = null;
       let error = '';
+      let paused = false;   // you're using OmniFocus, so EdgeDeck isn't reading it
       const pending = new Map();   // task id -> undo timer
 
       // OmniFocus estimates are in minutes: 45 → "45m", 90 → "1h 30m", 120 → "2h".
@@ -199,11 +200,15 @@
         $('.of-title').textContent = s.title || s.perspective || 'OmniFocus';
         const tasks = rows ? rows.filter((r) => r.k === 't' && !r.done && !r.dr) : [];
         $('.of-count').textContent = rows ? String(tasks.length) : '';
-        $('.of-status').textContent = error && rows ? '⚠︎' : '';
+        const st = $('.of-status');
+        if (paused) st.innerHTML = '<span class="of-pause-bars"></span>Paused<span class="of-pause-why">&nbsp;while you use OmniFocus</span>';
+        else st.textContent = error && rows ? '⚠︎' : '';
+        st.classList.toggle('paused', paused);
         if (!s.perspective) { list.innerHTML = `<div class="of-msg">${ctx.edit ? 'Choose a perspective' : 'Not set up'}</div>`; return; }
         if (!rows) {
           list.innerHTML = error
             ? `<div class="of-msg">${esc(error)}${/isn.t open/.test(error) ? '<br><button class="of-btn pressable of-launch">Open OmniFocus</button>' : ''}</div>`
+            : paused ? '<div class="of-msg">⏸ Paused while you use OmniFocus</div>'
             : '<div class="of-msg">Loading…</div>';
           const launch = list.querySelector('.of-launch');
           if (launch) launch._edgeTap = () => ctx.bridge.call('omnifocus.launch').then(() => setTimeout(() => p.run(), 3000));
@@ -252,25 +257,35 @@
       }
 
       // Poll, but don't redraw under a finger mid-undo; completed tasks drop out on the next read.
+      // While you're using OmniFocus, EdgeDeck leaves its windows alone ({paused}) and keeps the last list.
       let busy = false;
+      let again = false;
       const load = async () => {
-        if (busy || document.hidden || !s.perspective) { render(); return; }
+        if (busy) { again = true; return; }
+        if (document.hidden || !s.perspective) { render(); return; }
         busy = true;
         try {
           const r = await ctx.bridge.call('omnifocus.view', { perspective: s.perspective });
-          rows = r.rows || [];
-          error = '';
-        } catch (e) { error = e.message; }
+          if (r && r.paused) paused = true;
+          else { rows = r.rows || []; error = ''; paused = false; }
+        } catch (e) { error = e.message; paused = false; }
         busy = false;
         render();
+        if (again) { again = false; load(); }
+      };
+      const onInUse = (e) => {
+        if (e.detail) { paused = true; render(); }
+        else if (paused) load();
       };
       const p = { run: load };
       render();
       load();
       const timer = ctx.edit ? null : setInterval(load, Math.max(10, Number(s.refresh) || 30) * 1000);
+      if (!ctx.edit) window.addEventListener('edge-omnifocus-in-use', onInUse);
       return {
         destroy() {
           clearInterval(timer);
+          window.removeEventListener('edge-omnifocus-in-use', onInUse);
           // Anything still waiting out its undo is completed now rather than lost.
           for (const [id, t] of pending) { clearTimeout(t); ctx.bridge.call('omnifocus.complete', { id }).catch(() => {}); }
         },
