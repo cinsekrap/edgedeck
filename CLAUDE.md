@@ -98,7 +98,10 @@ A macOS menu-bar app that runs a touch dashboard on the Corsair Xeneon Edge
   Automation) as JSON. Complete / set plannedDate by task id. Serial queue; Automation permission for OmniFocus.
   While OmniFocus is the front app, `view` answers {paused: true} without touching the window (switching the parked
   window's perspective made OmniFocus jump between windows under you); widgets keep their list, show "Paused", and
-  reload on the `edge-omnifocus-in-use` event when you leave. Completing and planning still work (by id, no window).
+  reload on the `edge-omnifocus-in-use` event when you leave. The lost-window check (`ensureVisibleWindow`) decides
+  "you can see a window" from CGWindowListCopyWindowInfo (on screen now, ≥200×150 of it on a non-Edge display; no
+  Screen Recording needed for bounds), not from AppleScript: OmniFocus can report a window that's on another desktop
+  or nowhere visible (seen Nov 2026; quitting OmniFocus cleared it). Each decision is logged with window positions. Completing and planning still work (by id, no window).
   Confirmed working on the real panel (Nov 2026): grouping headings (incl. date groups), complete with undo,
   planned-date sheet, newspaper columns on wide widgets. Possible polish: repeat a group heading in a new column.
 - `ElgatoLights.swift`: Elgato Key Lights via Bonjour (_elg._tcp, declared in NSBonjourServices) + plain HTTP on 9123

@@ -174,7 +174,8 @@ final class OmniFocusService {
             let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
             self.lostSince = nil
             if app?.bundleIdentifier == Self.bundleID {
-                self.ensureVisibleWindow(openNow: true)
+                // A moment's wait: switching to OmniFocus may first move you to the desktop its window is on.
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in self?.ensureVisibleWindow(openNow: true) }
                 if self.watchTimer == nil {
                     self.watchTimer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in
                         self?.ensureVisibleWindow(openNow: false)
@@ -187,32 +188,62 @@ final class OmniFocusService {
         }
     }
 
+    /// OmniFocus windows macOS has on screen right now (this desktop, not minimised,
+    /// not hidden), in top-left-origin coordinates. Positions and owners need no
+    /// Screen Recording permission (only titles do, and they aren't read).
+    private static func onScreenWindows() -> [CGRect] {
+        guard let pid = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID).first?.processIdentifier,
+              let list = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID)
+                as? [[String: Any]] else { return [] }
+        return list.compactMap { info in
+            guard (info[kCGWindowOwnerPID as String] as? Int32) == pid,
+                  (info[kCGWindowLayer as String] as? Int) == 0,
+                  ((info[kCGWindowAlpha as String] as? Double) ?? 1) > 0,
+                  let b = info[kCGWindowBounds as String] as? NSDictionary,
+                  let r = CGRect(dictionaryRepresentation: b),
+                  r.width >= 300, r.height >= 200 else { return nil }   // not panels or pop-ups
+            return r
+        }
+    }
+
+    private static func describe(_ r: CGRect) -> String {
+        "\(Int(r.minX)),\(Int(r.minY)) \(Int(r.width))×\(Int(r.height))"
+    }
+
     private func ensureVisibleWindow(openNow: Bool) {
         if checking { if openNow { openNowPending = true }; return }
         guard isRunning, NSWorkspace.shared.frontmostApplication?.bundleIdentifier == Self.bundleID,
               let edge = edgeFrame(), let main = NSScreen.screens.first else { return }
         let mayOpen = openNow || (lostSince.map { Date().timeIntervalSince($0) >= closeGrace } ?? false)
-        checking = true
         let mainHeight = main.frame.height
-        // AppleScript bounds use a top-left origin on the main screen.
+        // Top-left origin on the main screen, as AppleScript bounds and CGWindowList use.
+        func topLeft(_ f: NSRect) -> CGRect { CGRect(x: f.minX, y: mainHeight - f.maxY, width: f.width, height: f.height) }
+        let edgeTL = topLeft(edge)
+        // A window you can see: on screen now, with a good part of it on a display other than the Edge.
+        // (Not just "not on the Edge": a window on another desktop or off every screen doesn't count.)
+        let others = NSScreen.screens.map { topLeft($0.frame) }.filter { !$0.intersects(edgeTL.insetBy(dx: 2, dy: 2)) }
+        let shown = Self.onScreenWindows()
+        let seen = shown.contains { w in others.contains { s in let i = w.intersection(s); return i.width >= 200 && i.height >= 150 } }
+        checking = true
         let left = Int(edge.minX), right = Int(edge.maxX)
         let top = Int(mainHeight - edge.maxY), bottom = Int(mainHeight - edge.minY)
         let v = main.visibleFrame
         let w = min(1200, v.width - 80), h = min(800, v.height - 80)
         let x = Int(v.midX - w / 2), y = Int(mainHeight - v.midY - h / 2)
         let bounds = "{\(x), \(y), \(x + Int(w)), \(y + Int(h))}"
-        // Replies "<result> <windows> <on the Edge> <minimised>", where result is
-        // "visible" (you have a window you can see), "none" (no windows at all),
-        // "hidden" (only EdgeDeck's, or minimised ones) or "opened".
+        // Replies "<result> <windows> <on the Edge> <minimised>|<other windows' bounds>", where
+        // result is "visible" (you can see one), "none" (no windows at all), "hidden" (none you
+        // can see) or "opened".
         let script = """
         tell application id "\(Self.bundleID)"
-            local d, total, onEdge, mini, b, ids, w, isMini, counts
+            local d, total, onEdge, mini, b, ids, w, isMini, counts, placesList
             set d to default document
             set ids to id of every document window of d
             set total to count of ids
-            if total = 0 then return "none 0 0 0"
+            if total = 0 then return "none 0 0 0|"
             set onEdge to 0
             set mini to 0
+            set placesList to ""
             repeat with i in ids
                 set w to document window id i of d
                 set b to bounds of w
@@ -222,12 +253,17 @@ final class OmniFocusService {
                 end try
                 if (item 1 of b) ≥ \(left) and (item 1 of b) < \(right) and (item 2 of b) ≥ \(top) and (item 2 of b) < \(bottom) then
                     set onEdge to onEdge + 1
-                else if isMini then
-                    set mini to mini + 1
+                else
+                    set placesList to placesList & (item 1 of b) & "," & (item 2 of b) & " " & ((item 3 of b) - (item 1 of b)) & "×" & ((item 4 of b) - (item 2 of b))
+                    if isMini then
+                        set mini to mini + 1
+                        set placesList to placesList & " minimised"
+                    end if
+                    set placesList to placesList & "; "
                 end if
             end repeat
-            set counts to " " & total & " " & onEdge & " " & mini
-            if total > onEdge + mini then return "visible" & counts
+            set counts to " " & total & " " & onEdge & " " & mini & "|" & placesList
+            if \(seen ? "true" : "false") then return "visible" & counts
             if \(mayOpen ? "true" : "false") then
                 tell d to make new document window with properties {bounds:\(bounds)}
                 return "opened" & counts
@@ -235,21 +271,27 @@ final class OmniFocusService {
             return "hidden" & counts
         end tell
         """
+        let onScreenNote = "on screen now: " + (shown.isEmpty ? "none" : shown.map(Self.describe).joined(separator: "; "))
         queue.async { [weak self] in
             let r = Scripts.run(source: script, language: "applescript", timeout: 10)
             DispatchQueue.main.async {
                 guard let self = self else { return }
                 self.checking = false
-                let parts = (r.value as? String ?? "").split(separator: " ").map(String.init)
+                let text = r.value as? String ?? ""
+                let halves = text.split(separator: "|", maxSplits: 1, omittingEmptySubsequences: false).map(String.init)
+                let parts = (halves.first ?? "").split(separator: " ").map(String.init)
                 let result = parts.first ?? ""
-                let counts = parts.count == 4
+                var counts = parts.count == 4
                     ? "\(parts[1]) window(s): \(parts[2]) EdgeDeck's on the Edge, \(parts[3]) minimised" : ""
+                let elsewhere = halves.count > 1 ? halves[1].trimmingCharacters(in: CharacterSet(charactersIn: "; ")) : ""
+                if !elsewhere.isEmpty { counts += "; others at \(elsewhere)" }
+                counts += "; \(onScreenNote)"
                 switch result {
                 case "opened":
                     self.lostSince = nil
                     Log.write("OmniFocus: opened a window on the main screen (" +
                               (openNow ? "switched to OmniFocus" : "still in front 10 s after its last window closed") +
-                              "; \(counts))")
+                              ", none you could see; \(counts))")
                 case "hidden":
                     if self.lostSince == nil {
                         self.lostSince = Date()
@@ -257,7 +299,7 @@ final class OmniFocusService {
                     }
                 default:
                     if openNow, r.error == nil {
-                        Log.write("OmniFocus: switched to it; " + (result == "visible" ? "you have a window (\(counts))" : "no windows at all, left to OmniFocus"))
+                        Log.write("OmniFocus: switched to it; " + (result == "visible" ? "you can see a window (\(counts))" : "no windows at all, left to OmniFocus"))
                     }
                     self.lostSince = nil
                 }
