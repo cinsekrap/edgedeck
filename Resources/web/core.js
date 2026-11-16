@@ -968,8 +968,10 @@
     // Called by EdgeTeams when a meeting starts or ends. On start: wake the
     // screen and show the Teams page. On end: go back to the page that was
     // showing, unless you've already moved off the Teams page yourself.
+    // Only the dashboard on the Edge: every window hears about meetings, and Settings/Setup
+    // used to draw the meeting page over themselves (and run the meeting lights twice).
     meetingChanged(inMeeting) {
-      if (this.mode === 'edit' || !State.config) return;
+      if (this.mode !== 'dashboard' || !State.config) return;
       const t = State.config.teams || {};
       if (inMeeting) Saver.wake();
       if (t.lightsOn) this.meetingLights(inMeeting);
