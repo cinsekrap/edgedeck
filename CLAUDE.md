@@ -79,6 +79,10 @@ A macOS menu-bar app that runs a touch dashboard on the Corsair Xeneon Edge
 - Meeting lights (core.js meetingLights): waits up to ~5 s for Elgato discovery, stores which lights it switched on in
   localStorage (edgedeck.meetingLights) so a restart mid-meeting still switches them back off, restores them at
   startup if the meeting ended meanwhile, and logs "Meeting lights: …". Confirmed working.
+- Meeting toggle in Home Assistant (core.js meetingFlag/sendMeetingFlag, `teams.haEntity`, Settings → Meetings): turn_on
+  at meeting start, turn_off at the end, only on those transitions (a manual change mid-meeting stands). The wanted
+  state is kept in localStorage (edgedeck.meetingHA {entity, on, sent, why}): sent when HA (re)connects if it was
+  offline, switched off at startup if the meeting ended meanwhile; logs "Home Assistant: turned on … (meeting started)".
   Blur: open video-button-configure, read whether the "… blur" AXMenuItem is current (AXValue 1 / mark ✓), press it
   or "No background effect" (shown as "None"), Escape to close. Confirmed working. Diagnostics → Inspect
   Teams Controls logs the tree.

@@ -144,6 +144,7 @@
     },
 
     teams(cfg) {
+      HA.configure(cfg.homeAssistant.url, cfg.homeAssistant.token);   // for the entity picker
       const live = h('div');
       every(3000, () => EdgeBridge.call('teams.state').then((t) => {
         live.replaceChildren(statusLine(t.connected ? true : t.reason === 'accessibility' ? false : null,
@@ -162,6 +163,11 @@
           control({ key: 'stayAwake', label: 'Keep the Edge awake during meetings', type: 'bool' }, cfg.teams, 'teams'),
           control({ key: 'lightsOn', label: 'Turn my Elgato Key Lights on during meetings', type: 'bool',
             hint: 'Lights that were off are switched off again when the meeting ends.' }, cfg.teams, 'teams')),
+        card('Home Assistant',
+          control({ key: 'haEntity', label: 'Switch this on during meetings', type: 'entity', domains: ['input_boolean', 'switch', 'light'],
+            first: { domains: ['input_boolean'], label: 'Toggle helpers' },
+            hint: 'On when a Teams or Zoom meeting starts, off when it ends. Use it in your automations.' }, cfg.teams, 'teams'),
+          note('To make one: in Home Assistant, Settings → Devices & services → Helpers → Create helper → Toggle, named something like “In a meeting”. EdgeDeck only switches it when a meeting starts or ends, so you can still switch it yourself in between. If the Mac sleeps or EdgeDeck quits mid-meeting, it stays on until EdgeDeck runs again.')),
       ];
     },
 

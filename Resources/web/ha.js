@@ -503,6 +503,7 @@
         mk('light.garden', 'off', { friendly_name: 'Garden lights', supported_color_modes: ['brightness'], icon: 'mdi:string-lights' }),
         mk('light.landing', 'unavailable', { friendly_name: 'Landing bulb', supported_color_modes: ['brightness'] }, 135),
         mk('switch.hot_tub_heater', 'on', { friendly_name: 'Hot tub heater', icon: 'mdi:hot-tub' }),
+        mk('input_boolean.in_a_meeting', 'off', { friendly_name: 'In a meeting', icon: 'mdi:account-voice' }),
         mk('fan.office', 'off', { friendly_name: 'Office fan', percentage: 0, percentage_step: 33.3 }),
         mk('sensor.hot_tub_temperature', '37.5', { friendly_name: 'Hot tub', unit_of_measurement: '°C', device_class: 'temperature' }),
         mk('sensor.office_temperature', '21.3', { friendly_name: 'Office temperature', unit_of_measurement: '°C', device_class: 'temperature' }),

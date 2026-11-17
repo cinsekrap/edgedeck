@@ -16,7 +16,7 @@ A touch dashboard for the Corsair Xeneon Edge on macOS.
   - **App badges**: unread counts from the Dock (Mail, Outlook, Slack, WhatsApp…), with your own labels.
   - **Home Assistant**: entities (hold one for its full controls), cameras, a sensor glance, a strip of scenes, and whole areas.
   - **Script**: shows the result of an AppleScript or JXA script. Also a clock, text labels and a timer/stopwatch.
-- **Meeting controls for Microsoft Teams and Zoom:** mute, camera, background blur, raise hand, reactions, chat, stop sharing and leave, showing live state. When a meeting starts, the Edge wakes and switches to the meeting page (optionally turning your Key Lights on), then goes back afterwards. Works through Accessibility, so it needs that permission.
+- **Meeting controls for Microsoft Teams and Zoom:** mute, camera, background blur, raise hand, reactions, chat, stop sharing and leave, showing live state. When a meeting starts, the Edge wakes and switches to the meeting page (optionally turning your Key Lights on, and switching a Home Assistant toggle on for your automations), then goes back afterwards. Works through Accessibility, so it needs that permission.
 - **Profiles** of pages, with export/import, plus pages that appear automatically when a given app is in front.
 - **Screen saver** to protect the panel from burn-in: dims, then blanks, after a while idle, with a pixel shift and an optional schedule.
 - **Settings window, first-run setup** and a global text size.
@@ -91,6 +91,8 @@ Widgets:
 - **Camera** tiles refresh every few seconds. Tap one to see it full screen, and tap again to close it.
 
 Icons come from Home Assistant where it has them (`mdi:` names, drawn with the bundled Material Design Icons font). You can also type an emoji or an `mdi:` name yourself.
+
+**Meetings:** EdgeDeck can switch a Home Assistant toggle on while you're in a Teams or Zoom meeting and off afterwards, for your automations (a light outside the door, notifications off, …). Make a toggle helper in Home Assistant (Settings → Devices & services → Helpers → Create helper → Toggle), then choose it in **Settings → Meetings**. It's only switched when a meeting starts or ends, so you can still change it yourself in between. If Home Assistant is offline when a meeting starts, EdgeDeck switches it once Home Assistant is back.
 
 If you set the address to `mock`, you get sample entities and areas, which is handy for trying out layouts.
 

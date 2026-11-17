@@ -108,15 +108,19 @@
         const rows = [];
         if (!shown.length) rows.push(h('div', { class: 'hap-empty' }, query ? 'Nothing matches “' + query + '”.' : 'Nothing of this type.'));
         // Grouped by area when Home Assistant shares its areas.
+        // opts.first {domains, label}: the likeliest choices get their own group at the top.
+        const FIRST = '\u0000';
+        const isFirst = (e) => opts.first && opts.first.domains.includes(e.id.split('.')[0]);
         const groups = new Map();
         for (const e of shown) {
-          const k = HA.hasRegistry ? (e.area || NO_AREA) : '';
+          const k = isFirst(e) ? FIRST : HA.hasRegistry ? (e.area || NO_AREA) : '';
           if (!groups.has(k)) groups.set(k, []);
           groups.get(k).push(e);
         }
         const keys = [...groups.keys()].sort((a, b) => a.localeCompare(b));
+        const labelled = HA.hasRegistry || groups.has(FIRST);
         for (const k of keys) {
-          if (HA.hasRegistry) rows.push(h('div', { class: 'hap-group' }, k === NO_AREA ? 'No area' : k));
+          if (labelled) rows.push(h('div', { class: 'hap-group' }, k === FIRST ? opts.first.label : k === NO_AREA ? 'No area' : k || 'Everything else'));
           for (const e of groups.get(k).sort((a, b) => a.name.localeCompare(b.name))) rows.push(row(e));
         }
         list.replaceChildren(...rows);
@@ -193,10 +197,10 @@
     };
     cur.addEventListener('click', async (e) => {
       e.preventDefault();
-      const r = await pick({ title: prop.label, types: prop.types, domains: prop.domains, selected: obj[prop.key] ? [obj[prop.key]] : [] });
-      if (r && r[0]) set(r[0], true);
+      const r = await pick({ title: prop.label, types: prop.types, domains: prop.domains, first: prop.first, selected: obj[prop.key] ? [obj[prop.key]] : [] });
+      if (r && r[0]) { set(r[0], true); show(); }   // the editor redraws anyway; Settings doesn't
     });
-    clear.addEventListener('click', (e) => { e.preventDefault(); set('', true); });
+    clear.addEventListener('click', (e) => { e.preventDefault(); set('', true); show(); });
     show();
     const wrap = h('div', { class: 'ed-field hap-entity' }, h('span', { class: 'ed-label' }, prop.label), h('div', { class: 'ed-row hap-field-row' }, cur, clear), hint);
     live(wrap, (id) => { if (id === '*' || id === obj[prop.key]) show(); });

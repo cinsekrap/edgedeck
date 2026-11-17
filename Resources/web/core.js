@@ -14,7 +14,7 @@
       theme: { accent: '#4cc2ff', background: '#060708', tile: '#14171c', radius: 22, textScale: 100 },
       homeAssistant: { url: 'http://homeassistant.local:8123', token: '' },
       device: { flipX: false, flipY: false, swapXY: false, screenName: '', showTouches: false, fixStretch: true },
-      teams: { enabled: true, autoPage: true, stayAwake: true, lightsOn: false },
+      teams: { enabled: true, autoPage: true, stayAwake: true, lightsOn: false, haEntity: '' },
       updates: { autoCheck: true },
       screensaver: { dimAfter: 10, dimLevel: 20, blankAfter: 30, blankClock: true, pixelShift: true, schedule: false, scheduleFrom: '23:00', scheduleTo: '07:00' },
       pages: buildTemplate('minimal', ['media']).pages,
@@ -901,7 +901,12 @@
             let pending = null;
             try { pending = JSON.parse(localStorage.getItem('edgedeck.meetingLights') || 'null'); } catch (e) {}
             if (pending && !EdgeTeams.inMeeting) this.meetingLights(false);
+            // Same for the Home Assistant meeting toggle; anything not yet sent goes once connected.
+            const flag = this.meetingFlagSaved();
+            if (flag && flag.on && !EdgeTeams.inMeeting) this.meetingFlag(false, 'the meeting ended while EdgeDeck wasn’t running');
+            else this.sendMeetingFlag();
           });
+          if (window.HA) HA.subscribe((id) => { if (id === '*' && HA.status === 'connected') this.sendMeetingFlag(); });
         }
         window.addEventListener('resize', () => Canvas.apply());
         EdgeBridge.call('app.front').then((id) => id && this.frontAppChanged(id)).catch(() => {});
@@ -975,6 +980,7 @@
       const t = State.config.teams || {};
       if (inMeeting) Saver.wake();
       if (t.lightsOn) this.meetingLights(inMeeting);
+      this.meetingFlag(inMeeting, inMeeting ? 'meeting started' : 'meeting ended');
       if (t.autoPage === false) return;
       const meetingIndex = State.config.pages.length;   // the meeting page goes after the profile's pages
       if (inMeeting) {
@@ -1025,6 +1031,52 @@
           }
         }
       } catch (e) { EdgeBridge.log('Meeting lights: ' + e.message); }
+    },
+    // A toggle in Home Assistant (teams.haEntity, e.g. input_boolean.in_a_meeting) that's
+    // on during meetings and off afterwards, for automations. Only on a meeting starting or
+    // ending, so switching it yourself mid-meeting isn't undone. What's wanted is kept in
+    // local storage ({entity, on, sent, why}): a restart still switches it off, and if Home
+    // Assistant is offline it's sent when it reconnects.
+    meetingFlagSaved() {
+      try { return JSON.parse(localStorage.getItem('edgedeck.meetingHA') || 'null'); } catch (e) { return null; }
+    },
+    meetingFlagStore(v) {
+      try { if (v) localStorage.setItem('edgedeck.meetingHA', JSON.stringify(v)); else localStorage.removeItem('edgedeck.meetingHA'); } catch (e) {}
+    },
+    meetingFlag(inMeeting, why) {
+      const saved = this.meetingFlagSaved();
+      // Switch off the one that was switched on, even if the setting has changed since.
+      const entity = inMeeting ? (State.config.teams || {}).haEntity || '' : saved && saved.on ? saved.entity : '';
+      if (!entity) { if (!(saved && !saved.on)) this.meetingFlagStore(null); return; }   // keep a switch-off still to send
+      if (inMeeting && saved && saved.on && saved.entity === entity) return;   // already done for this meeting
+      this.meetingFlagStore({ entity, on: inMeeting, sent: false, why });
+      this.sendMeetingFlag();
+    },
+    async sendMeetingFlag() {
+      const want = this.meetingFlagSaved();
+      if (!want || want.sent || this.sendingFlag) return;
+      const verb = want.on ? 'on' : 'off';
+      if (!window.HA || HA.status !== 'connected') {
+        if (this.flagWaitLogged !== verb + want.entity) {
+          this.flagWaitLogged = verb + want.entity;
+          EdgeBridge.log(`Home Assistant: not connected (${window.HA ? HA.status : 'no client'}); will turn ${verb} ${want.entity} when it is (${want.why})`);
+        }
+        return;
+      }
+      this.sendingFlag = true;
+      try {
+        await HA.callService(want.entity.split('.')[0], want.on ? 'turn_on' : 'turn_off', want.entity);
+        EdgeBridge.log(`Home Assistant: turned ${verb} ${want.entity} (${want.why})`);
+        // Only mark it done if nothing newer was asked for meanwhile.
+        const now = this.meetingFlagSaved();
+        if (now && now.on === want.on && now.entity === want.entity) this.meetingFlagStore(want.on ? Object.assign(now, { sent: true }) : null);
+      } catch (e) {
+        EdgeBridge.log(`Home Assistant: couldn’t turn ${verb} ${want.entity}: ${e.message}; will try again when it reconnects`);
+      }
+      this.sendingFlag = false;
+      this.flagWaitLogged = null;
+      const after = this.meetingFlagSaved();
+      if (after && !after.sent && (after.on !== want.on || after.entity !== want.entity)) this.sendMeetingFlag();
     },
     Saver,
     Calibration,
