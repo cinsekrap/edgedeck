@@ -86,6 +86,9 @@ A macOS menu-bar app that runs a touch dashboard on the Corsair Xeneon Edge
   stands. localStorage edgedeck.haToggles {entity: {on, sent, why}} (0.1.11's edgedeck.meetingHA is migrated):
   unsent changes go when HA (re)connects; at startup an "on" EdgeDeck set is switched off if the meeting ended; a
   toggle no longer chosen in Settings is switched off. Logs "Home Assistant: turned on … (reason)".
+  `teams.haOnlyWithEdge` (default on): a meeting only counts while the Edge display is found (display.canvas `edge`
+  at start, then `EdgeDeck.edgeConnectedChanged` from DashboardController.onScreenFoundChanged); nothing is sent
+  until that's known.
 - `renderDashboard` refuses to run outside the dashboard window and logs who asked ("Dashboard: not drawn in the
   settings window (asked by …)"): Teams/Zoom state is broadcast to every window.
   Blur: open video-button-configure, read whether the "… blur" AXMenuItem is current (AXValue 1 / mark ✓), press it

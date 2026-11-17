@@ -170,6 +170,9 @@
           control({ key: 'haMicEntity', label: 'Switch this on while my microphone is on', type: 'entity', domains: ['input_boolean', 'switch', 'light'],
             first: { domains: ['input_boolean'], label: 'Toggle helpers' },
             hint: 'On while you’re unmuted in a meeting; off when you mute or the meeting ends. Good for an on-air light.' }, cfg.teams, 'teams'),
+          control({ key: 'haOnlyWithEdge', label: 'Only while the Edge is connected', type: 'bool', default: true,
+            hint: 'So a meeting on this Mac away from your desk doesn’t count. Unplugging the Edge mid-meeting switches them off; plugging it back in, on.' }, cfg.teams, 'teams'),
+          note('With “Only while the Edge is connected”, a meeting on this Mac away from your desk doesn’t count, and unplugging the Edge mid-meeting switches them off.'),
           note('Use them in your automations. To make one: in Home Assistant, Settings → Devices & services → Helpers → Create helper → Toggle (e.g. “In a meeting”, “Microphone on”). EdgeDeck only switches them when something changes (a meeting starts, you mute…), so you can still switch them yourself in between. If the Mac sleeps or EdgeDeck quits mid-meeting, they stay as they were until EdgeDeck runs again.')),
       ];
     },

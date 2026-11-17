@@ -58,7 +58,7 @@
             ['Terminal', 'com.apple.Terminal']].map(([name, id]) => ({ name, id }));
         case 'shortcuts.list': return ['Focus: Work', 'Start Meeting', 'Log Water'];
         case 'app.icon': return null;
-        case 'display.canvas': return { width: 0, height: 0 };
+        case 'display.canvas': return { width: 0, height: 0, edge: !/[?&]noedge/.test(location.search) };
         case 'teams.state':
           return { connected: true, paired: true, meeting: mockMeeting };
         case 'teams.action': {

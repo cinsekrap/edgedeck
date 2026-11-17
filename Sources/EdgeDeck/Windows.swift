@@ -92,7 +92,15 @@ final class DashboardController {
     let window: DashboardWindow
     let webView: WKWebView
     var enabled = true
-    private(set) var screenFound = false
+    private(set) var screenFound = false {
+        didSet {
+            guard screenFound != oldValue else { return }
+            Log.write(screenFound ? "Display: Xeneon Edge connected" : "Display: Xeneon Edge not connected")
+            onScreenFoundChanged?(screenFound)
+        }
+    }
+    /// Called when the Edge display appears or goes away (after the first check).
+    var onScreenFoundChanged: ((Bool) -> Void)?
     /// The layout size the page should use, or .zero to use the window as is.
     /// Non-zero when macOS drives the Edge with a 16:9 signal that the panel
     /// stretches to 32:9: the page lays out at the panel's real size and

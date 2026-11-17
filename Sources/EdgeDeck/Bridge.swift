@@ -259,7 +259,7 @@ final class Bridge: NSObject, WKScriptMessageHandler {
 
         case "display.canvas":
             let c = canvas()
-            reply(["width": Int(c.width), "height": Int(c.height)])
+            reply(["width": Int(c.width), "height": Int(c.height), "edge": DashboardController.edgeScreen() != nil])
 
         case "system.stats":
             background { SystemStats.shared.snapshot() }

@@ -14,7 +14,7 @@
       theme: { accent: '#4cc2ff', background: '#060708', tile: '#14171c', radius: 22, textScale: 100 },
       homeAssistant: { url: 'http://homeassistant.local:8123', token: '' },
       device: { flipX: false, flipY: false, swapXY: false, screenName: '', showTouches: false, fixStretch: true },
-      teams: { enabled: true, autoPage: true, stayAwake: true, lightsOn: false, haEntity: '', haMicEntity: '' },
+      teams: { enabled: true, autoPage: true, stayAwake: true, lightsOn: false, haEntity: '', haMicEntity: '', haOnlyWithEdge: true },
       updates: { autoCheck: true },
       screensaver: { dimAfter: 10, dimLevel: 20, blankAfter: 30, blankClock: true, pixelShift: true, schedule: false, scheduleFrom: '23:00', scheduleTo: '07:00' },
       pages: buildTemplate('minimal', ['media']).pages,
@@ -900,7 +900,9 @@
         try {
           const c = await EdgeBridge.call('display.canvas');
           if (c) Canvas.set(c.width, c.height);
+          if (c && typeof c.edge === 'boolean') this.edgeConnected = c.edge;
         } catch (e) { /* older app or browser preview */ }
+        if (this.edgeConnected == null) this.edgeConnected = true;
         renderDashboard();
         Saver.start();
         if (window.EdgeTeams) {
@@ -970,6 +972,12 @@
 
     // Called by the Mac app when the Edge's display mode changes.
     setCanvas(w, h) { Canvas.set(w, h); },
+    // From the Mac app when the Edge display appears or goes away.
+    edgeConnected: null,   // unknown until the app says
+    edgeConnectedChanged(found) {
+      this.edgeConnected = !!found;
+      this.syncHAToggles(found ? 'the Edge was connected' : 'the Edge was disconnected');
+    },
 
     // Called by the Mac app (menu bar or editor) to calibrate or reset touch.
     calibrate() { if (this.mode !== 'edit') Calibration.start(); },
@@ -1058,11 +1066,18 @@
     haTogglesStore(v) {
       try { localStorage.setItem('edgedeck.haToggles', JSON.stringify(v)); } catch (e) {}
     },
-    syncHAToggles() {
+    syncHAToggles(because) {
       if (this.mode !== 'dashboard' || !State.config || !window.EdgeTeams) return;
       const t = State.config.teams || {};
+      const onlyEdge = t.haOnlyWithEdge !== false;
+      if (onlyEdge && this.edgeConnected == null) return;   // wait to hear whether the Edge is there
+      // "Only while the Edge is connected": a meeting away from the Edge doesn't count.
+      if (this.haSynced && this.haOnlyEdgeWas !== undefined && this.haOnlyEdgeWas !== onlyEdge) {
+        because = because || `“Only while the Edge is connected” turned ${onlyEdge ? 'on' : 'off'}`;
+      }
+      this.haOnlyEdgeWas = onlyEdge;
       const m = EdgeTeams.state.meeting || {};
-      const inMeeting = EdgeTeams.inMeeting;
+      const inMeeting = EdgeTeams.inMeeting && (!onlyEdge || this.edgeConnected);
       // Mute is only known while the app shows its mute control (Teams hides it behind pop-ups).
       const micKnown = !inMeeting || !!m.canToggleMute;
       // `was` is undefined for a toggle EdgeDeck hasn't decided on yet: just started, or just chosen in Settings.
@@ -1086,7 +1101,7 @@
         const s = saved[entity];
         if (s && s.on === w.on) continue;                    // already so, or already on its way
         if (was === undefined && !w.on && !s) continue;      // just started, nothing of ours to undo
-        saved[entity] = { on: w.on, sent: false, why: w.why(was) };
+        saved[entity] = { on: w.on, sent: false, why: (was !== undefined && because) || w.why(was) };
         changed = true;
       }
       // One you've stopped using in Settings: switch it off if EdgeDeck switched it on.

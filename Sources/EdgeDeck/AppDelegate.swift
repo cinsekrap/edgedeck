@@ -77,6 +77,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         touch.start()
 
+        dashboard.onScreenFoundChanged = { [weak self] found in
+            self?.bridge.broadcast("window.EdgeDeck && EdgeDeck.edgeConnectedChanged && EdgeDeck.edgeConnectedChanged(\(found))")
+        }
         dashboard.place()
         NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification,
                                                object: nil, queue: .main) { [weak self] _ in

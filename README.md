@@ -92,7 +92,7 @@ Widgets:
 
 Icons come from Home Assistant where it has them (`mdi:` names, drawn with the bundled Material Design Icons font). You can also type an emoji or an `mdi:` name yourself.
 
-**Meetings:** EdgeDeck can tell Home Assistant when you're in a Teams or Zoom meeting, and when your microphone is on, for your automations (a light outside the door, an on-air light, notifications off, …). Make toggle helpers in Home Assistant (Settings → Devices & services → Helpers → Create helper → Toggle), then choose them in **Settings → Meetings**: one is on during meetings, the other while you're unmuted in one. They're only switched when something changes (a meeting starts, you mute…), so you can still change them yourself in between. If Home Assistant is offline, EdgeDeck catches up once it's back.
+**Meetings:** EdgeDeck can tell Home Assistant when you're in a Teams or Zoom meeting, and when your microphone is on, for your automations (a light outside the door, an on-air light, notifications off, …). Make toggle helpers in Home Assistant (Settings → Devices & services → Helpers → Create helper → Toggle), then choose them in **Settings → Meetings**: one is on during meetings, the other while you're unmuted in one. They're only switched when something changes (a meeting starts, you mute…), so you can still change them yourself in between. If Home Assistant is offline, EdgeDeck catches up once it's back. By default a meeting only counts while the Edge is connected, so a meeting on your laptop away from your desk doesn't switch anything.
 
 If you set the address to `mock`, you get sample entities and areas, which is handy for trying out layouts.
 
