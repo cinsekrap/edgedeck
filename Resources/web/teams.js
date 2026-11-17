@@ -29,6 +29,7 @@
       this.state = Object.assign({ connected: false, paired: false, meeting: {} }, next || {});
       subscribers.forEach((fn) => { try { fn(this.state); } catch (e) { EdgeBridge.log('Teams widget: ' + e.message); } });
       if (was !== this.inMeeting && window.EdgeDeck && EdgeDeck.meetingChanged) EdgeDeck.meetingChanged(this.inMeeting);
+      if (window.EdgeDeck && EdgeDeck.syncHAToggles) EdgeDeck.syncHAToggles();   // meeting and mute toggles in Home Assistant
     },
 
     action(action, type) {

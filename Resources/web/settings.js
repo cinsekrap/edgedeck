@@ -166,8 +166,11 @@
         card('Home Assistant',
           control({ key: 'haEntity', label: 'Switch this on during meetings', type: 'entity', domains: ['input_boolean', 'switch', 'light'],
             first: { domains: ['input_boolean'], label: 'Toggle helpers' },
-            hint: 'On when a Teams or Zoom meeting starts, off when it ends. Use it in your automations.' }, cfg.teams, 'teams'),
-          note('To make one: in Home Assistant, Settings → Devices & services → Helpers → Create helper → Toggle, named something like “In a meeting”. EdgeDeck only switches it when a meeting starts or ends, so you can still switch it yourself in between. If the Mac sleeps or EdgeDeck quits mid-meeting, it stays on until EdgeDeck runs again.')),
+            hint: 'On when a Teams or Zoom meeting starts, off when it ends.' }, cfg.teams, 'teams'),
+          control({ key: 'haMicEntity', label: 'Switch this on while my microphone is on', type: 'entity', domains: ['input_boolean', 'switch', 'light'],
+            first: { domains: ['input_boolean'], label: 'Toggle helpers' },
+            hint: 'On while you’re unmuted in a meeting; off when you mute or the meeting ends. Good for an on-air light.' }, cfg.teams, 'teams'),
+          note('Use them in your automations. To make one: in Home Assistant, Settings → Devices & services → Helpers → Create helper → Toggle (e.g. “In a meeting”, “Microphone on”). EdgeDeck only switches them when something changes (a meeting starts, you mute…), so you can still switch them yourself in between. If the Mac sleeps or EdgeDeck quits mid-meeting, they stay as they were until EdgeDeck runs again.')),
       ];
     },
 

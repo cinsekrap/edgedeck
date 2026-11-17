@@ -79,10 +79,15 @@ A macOS menu-bar app that runs a touch dashboard on the Corsair Xeneon Edge
 - Meeting lights (core.js meetingLights): waits up to ~5 s for Elgato discovery, stores which lights it switched on in
   localStorage (edgedeck.meetingLights) so a restart mid-meeting still switches them back off, restores them at
   startup if the meeting ended meanwhile, and logs "Meeting lights: …". Confirmed working.
-- Meeting toggle in Home Assistant (core.js meetingFlag/sendMeetingFlag, `teams.haEntity`, Settings → Meetings): turn_on
-  at meeting start, turn_off at the end, only on those transitions (a manual change mid-meeting stands). The wanted
-  state is kept in localStorage (edgedeck.meetingHA {entity, on, sent, why}): sent when HA (re)connects if it was
-  offline, switched off at startup if the meeting ended meanwhile; logs "Home Assistant: turned on … (meeting started)".
+- Home Assistant meeting toggles (core.js syncHAToggles/sendHAToggles, Settings → Meetings): `teams.haEntity` on
+  during meetings, `teams.haMicEntity` on while the mic is on in a meeting (mute only trusted while canToggleMute;
+  Teams hides it behind pop-ups). teams.js calls syncHAToggles on every EdgeTeams.update, and reloadConfig after a
+  Settings change. It only acts when the wanted state changes (in-memory `haWanted`), so a manual change in HA
+  stands. localStorage edgedeck.haToggles {entity: {on, sent, why}} (0.1.11's edgedeck.meetingHA is migrated):
+  unsent changes go when HA (re)connects; at startup an "on" EdgeDeck set is switched off if the meeting ended; a
+  toggle no longer chosen in Settings is switched off. Logs "Home Assistant: turned on … (reason)".
+- `renderDashboard` refuses to run outside the dashboard window and logs who asked ("Dashboard: not drawn in the
+  settings window (asked by …)"): Teams/Zoom state is broadcast to every window.
   Blur: open video-button-configure, read whether the "… blur" AXMenuItem is current (AXValue 1 / mark ✓), press it
   or "No background effect" (shown as "None"), Escape to close. Confirmed working. Diagnostics → Inspect
   Teams Controls logs the tree.
